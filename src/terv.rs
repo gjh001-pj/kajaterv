@@ -1,13 +1,12 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 
-use crate::recipe::{Recipe, RecipePage};
-use crate::osszetevok::OsszetevoPage;
+use crate::recipe::Recipe;
+use crate::osszetevok::Osszetevo;
 use crate::meal::Meal;
 
+#[derive(PartialEq, Clone)]
 pub struct Terv {
-    pub osszetevo_p: OsszetevoPage,
-    pub recipe_p: RecipePage,
+    pub osszetevok: Vec<Osszetevo>,
+    pub recipes: Vec<Recipe>,
     pub meals: Vec<Meal>,
     pub shoppingdays: Vec<i32>,
 }
@@ -15,8 +14,8 @@ pub struct Terv {
 impl Terv {
     pub fn new() -> Self {
         Terv {
-            recipe_p: RecipePage::new(),
-            osszetevo_p: OsszetevoPage::new(),
+            osszetevok: Vec::new(),
+            recipes: Vec::new(),
             meals: Vec::new(),
             shoppingdays: Vec::new(),
         }

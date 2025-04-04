@@ -1,4 +1,5 @@
 
+#[derive(PartialEq, Clone)]
 pub struct Meal {
     pub recipe: String,
     pub number: u32,

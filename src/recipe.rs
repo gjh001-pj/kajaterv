@@ -2,13 +2,16 @@ use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
 use crate::osszetevok::Osszetevo;
+use crate::display::AppState;
+use crate::terv::Terv;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 struct Ingredient {
     name: String,
     quantity: f64,
     unit: String,
 }
+
 
 impl Ingredient {
     pub fn new() -> Self {
@@ -28,7 +31,7 @@ impl Ingredient {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Recipe {
     name: String,
     number: u32,
@@ -47,19 +50,17 @@ impl Recipe {
 
 #[derive(Debug)]
 pub struct RecipePage {
-    pub v: Vec<Recipe>,
     current_recipe: Option<usize>,
 }
 
 impl RecipePage {
     pub fn new() -> Self {
         RecipePage {
-            v: Vec::new(),
             current_recipe: None,
         }
     }
-    pub fn search_recipe(&mut self, name: &str) -> Result<(), String> {
-        for (index, recipe) in self.v.iter().enumerate() {
+    pub fn search_recipe(&mut self, name: &str, terv: &Terv) -> Result<(), String> {
+        for (index, recipe) in terv.recipes.iter().enumerate() {
             if recipe.name.contains(name) {
                 self.current_recipe = Some(index);
                 return Ok(());
@@ -68,8 +69,8 @@ impl RecipePage {
         Err(format!("Nem található ilyen recept: {name}"))
     }
 
-    fn get_recipe(&mut self) -> &mut Recipe {
-        self.v.get_mut(self.current_recipe.expect("Nem lehet rossz! 004")).expect("Nem lehet rossz! 005")
+    fn get_recipe<'a, 'b>(&'a mut self, terv: &'b mut Terv) -> &'b mut Recipe {
+        terv.recipes.get_mut(self.current_recipe.expect("Nem lehet rossz! 004")).expect("Nem lehet rossz! 005")
     }
 }
 
@@ -92,58 +93,76 @@ impl Component for RecipePage {
     type Message = RecipeMsg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         RecipePage::new()
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
+
         match msg {
             RecipeMsg::AddRecipe => {
-                self.v.push(Recipe::new());
-                self.current_recipe = Some(self.v.len() - 1);
+                let mut new_terv = (**terv).clone();
+                new_terv.recipes.push(Recipe::new());
+                self.current_recipe = Some(new_terv.recipes.len() - 1);
+                terv.set(new_terv);
                 true
             },
             RecipeMsg::SearchRecipe(name) => {
-                let _ = self.search_recipe(name.as_str());
+                let _ = self.search_recipe(name.as_str(), &terv);
                 true
             },
             RecipeMsg::UpdateName(name) => {
-                let recipe = self.get_recipe();
+                let mut new_terv = (**terv).clone();
+                let recipe = self.get_recipe(&mut new_terv);
                 recipe.name = name;
                 println!("{:?}", recipe);
+                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateNumber(number) => {
-                let recipe = self.get_recipe();
+                let mut new_terv = (**terv).clone();
+                let recipe = self.get_recipe(&mut new_terv);
                 if let Ok(number) = number.parse() {
                     recipe.number = number;
                 }
+                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateIngredientName(index, name) => {
-                let recipe = self.get_recipe();
+                let mut new_terv = (**terv).clone();
+                let recipe = self.get_recipe(&mut new_terv);
                 recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 006").name = name;
+                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateQuantity(index, quantity) => {
-                let recipe = self.get_recipe();
+                let mut new_terv = (**terv).clone();
+                let recipe = self.get_recipe(&mut new_terv);
                 if let Ok(quantity) = quantity.parse() {
                     recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 003").quantity = quantity;
                 }
+                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateUnit(index, unit) => {
-                let recipe = self.get_recipe();
+                let mut new_terv = (**terv).clone();
+                let recipe = self.get_recipe(&mut new_terv);
                 recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 002").unit = unit;
+                terv.set(new_terv);
                 true
             },
             RecipeMsg::RemoveRecipe => {
-                self.v.remove(self.current_recipe.expect("Nem lehet rossz! 001"));
+                let mut new_terv = (**terv).clone();
+                new_terv.recipes.remove(self.current_recipe.expect("Nem lehet rossz! 001"));
+                terv.set(new_terv);
                 true
             },
             RecipeMsg::AddIngredient => {
-                let recipe = self.get_recipe();
+                let mut new_terv = (**terv).clone();
+                let recipe = self.get_recipe(&mut new_terv);
                 recipe.ingredients.push(Ingredient::new());
+                terv.set(new_terv);
                 true
             },
             _ => {false}
@@ -152,6 +171,7 @@ impl Component for RecipePage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
+        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
         
         html! {
             <div class="recipes">
@@ -163,18 +183,18 @@ impl Component for RecipePage {
                         let input: HtmlInputElement = e.target_unchecked_into();
                         RecipeMsg::SearchRecipe(input.value())})} />
                     <datalist id="recipe_list">
-                        { for self.v.iter().map(|value| {
+                        { for terv.recipes.iter().map(|value| {
                             html! {<option value={value.name.clone()} />}
                         })}
                     </datalist>
                     <p>{ format!("Kiválasztott recept: {}", match self.current_recipe {
-                        Some(index) => {self.v.get(index).unwrap().name.clone()},
+                        Some(index) => {terv.recipes.get(index).unwrap().name.clone()},
                         None => {String::from("Nem található ilyen recept!")}
                     }) }</p>
                 </div>
                 <div class="current_recipe">
                     if let Some(recipe_index) = self.current_recipe {
-                        if let Some(recipe) = self.v.get(recipe_index) {
+                        if let Some(recipe) = terv.recipes.get(recipe_index) {
                             <table>
                                 <tr>
                                     <th>{ "Név:" }</th>

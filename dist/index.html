@@ -5,8 +5,8 @@
         <title>Yew App</title>
         
 <script type="module">
-import init, * as bindings from '/kajaterv-50b0521e9aad1ee1.js';
-const wasm = await init('/kajaterv-50b0521e9aad1ee1_bg.wasm');
+import init, * as bindings from '/kajaterv-785a8f869297fe08.js';
+const wasm = await init({ module_or_path: '/kajaterv-785a8f869297fe08_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -16,7 +16,5 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
         <!--<link data-trunk rel="css" href="style.css" />-->
-    
-<link rel="modulepreload" href="/kajaterv-50b0521e9aad1ee1.js" crossorigin=anonymous integrity="sha384-SHeiXaufS6DvMSrNsmlHmIKyn/Za6u+/F6zfTsNqTBF+v7tbaRwjRZP09TYtDs/4">
-<link rel="preload" href="/kajaterv-50b0521e9aad1ee1_bg.wasm" crossorigin=anonymous integrity="sha384-hmCId61z0iafnJGODbwxL6ANdvm9kQxU3omNZkNSqL/IEE9g+n8lVTITPSqtwOIy" as="fetch" type="application/wasm"></head>
+    <link rel="modulepreload" href="/kajaterv-785a8f869297fe08.js" crossorigin="anonymous" integrity="sha384-vLaXrlWMMK6uCSGTgnnvfI9W8SvvV5c9Gx8xmfytkSreO7cyoTFGWYg7W+CTiV2I"><link rel="preload" href="/kajaterv-785a8f869297fe08_bg.wasm" crossorigin="anonymous" integrity="sha384-hloJdqbgnHrDQLnAIWFTeSm52NV7lLOwHVM+c2ZynvKEnhCrPuq4uluR9YX3TXv/" as="fetch" type="application/wasm"></head>
 </html>

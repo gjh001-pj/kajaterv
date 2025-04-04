@@ -1,18 +1,30 @@
 
 use yew::prelude::*;
 use crate::terv::Terv;
+use std::rc::Rc;
 use crate::osszetevok::OsszetevoPage;
 use crate::recipe::RecipePage;
 
+#[derive(Clone, PartialEq)]
+pub struct AppState{
+    pub terv: Rc<UseStateHandle<Terv>>,
+}
+
+impl AppState {
+    pub fn new(state: UseStateHandle<Terv>) -> Self {
+        AppState {
+            terv: Rc::new(state),
+        }
+    }
+}
+
 pub struct App {
-    terv: Terv,
     current_page: &'static str,
 }
 
 impl App {
     pub fn new() -> Self {
         App {
-            terv: Terv::new(),
             current_page: "",
         }
     }
@@ -34,7 +46,7 @@ impl Component for App {
         App::new()
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             AppMsg::Osszetevok => {
                 self.current_page = "Összetevők";
@@ -53,9 +65,7 @@ impl Component for App {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let is_visible = |page: &str| -> &'static str {
-            if self.current_page == page { "display: block;" } else { "display: none;" }
-        };
+        let state = use_state(|| Terv::new());
 
         html! {
             <div class="root">
@@ -65,24 +75,24 @@ impl Component for App {
                     <button onclick={link.callback(|_| AppMsg::Meals)}>{ "Étkezések" }</button>
                 </div>
                 <p>{ self.current_page }</p>
-                <div class="container">
-                    //<div style={is_visible("Összetevők")}><OsszetevoPage /></div>
-                    
-                    {match self.current_page {
-                        "Összetevők" => {
-                            html! {<OsszetevoPage />}
-                        },
-                        "Receptek" => {
-                            html! {<RecipePage />}
-                            //html! {<p>{ "Receptek" }</p>}
-                        },
-                        "Étkezések" => {
-                            //html! {<Meal />}
-                            html! {<p>{ "Étkezések" }</p>}
-                        },
-                        _ => {html! {<p>{ "Ismeretlen" }</p>}}
-                    }}
-                </div>
+                // <div class="container">
+                //     <ContextProvider<AppState> context={AppState::new(state)}>
+                //     {match self.current_page {
+                //         "Összetevők" => {
+                //             html! {<OsszetevoPage />}
+                //         },
+                //         "Receptek" => {
+                //             html! {<RecipePage />}
+                //             //html! {<p>{ "Receptek" }</p>}
+                //         },
+                //         "Étkezések" => {
+                //             //html! {<Meal />}
+                //             html! {<p>{ "Étkezések" }</p>}
+                //         },
+                //         _ => {html! {<p>{ "Ismeretlen" }</p>}}
+                //     }}
+                //     </ContextProvider<AppState>>
+                // </div>
             </div>
             
         }

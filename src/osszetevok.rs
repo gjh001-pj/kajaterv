@@ -2,12 +2,16 @@ use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
 
+use crate::display::AppState;
+
+#[derive(PartialEq, Clone)]
 pub struct Osszetevo {
     pub name: String,
     unit: String,
     time: u32,
     unit_price: f64,
 }
+
 
 impl Osszetevo {
     pub fn new() -> Self {
@@ -20,15 +24,11 @@ impl Osszetevo {
     }
 }
 
-pub struct OsszetevoPage {
-    pub v: Vec<Osszetevo>,
-}
+pub struct OsszetevoPage {}
 
 impl OsszetevoPage {
     pub fn new() -> Self {
-        OsszetevoPage {
-            v: Vec::new(),
-        }
+        OsszetevoPage {}
     }
 }
 
@@ -47,46 +47,60 @@ impl Component for OsszetevoPage {
     type Message = OsszetevoMsg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         OsszetevoPage::new()
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
+        
         match msg {
             OsszetevoMsg::Add => {
-                self.v.push(Osszetevo::new());
+                let mut new_terv = (**terv).clone();
+                new_terv.osszetevok.push(Osszetevo::new());
+                terv.set(new_terv);
                 true
             },
             OsszetevoMsg::Remove(index) => {
-                self.v.remove(index);
+                let mut new_terv = (**terv).clone();
+                new_terv.osszetevok.remove(index);
+                terv.set(new_terv);
                 true
             }
             OsszetevoMsg::UpdateName(index, name) => {
-                if let Some(imput) = self.v.get_mut(index) {
+                let mut new_terv = (**terv).clone();
+                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
                     imput.name = name;
                 }
+                terv.set(new_terv);
                 true
             },
             OsszetevoMsg::UpdateUnit(index, unit) => {
-                if let Some(imput) = self.v.get_mut(index) {
+                let mut new_terv = (**terv).clone();
+                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
                     imput.unit = unit;
                 }
+                terv.set(new_terv);
                 true
             },
             OsszetevoMsg::UpdateTime(index, time) => {
-                if let Some(imput) = self.v.get_mut(index) {
+                let mut new_terv = (**terv).clone();
+                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
                     if let Ok(time) = time.parse() {
                         imput.time = time;
                     }
                 }
+                terv.set(new_terv);
                 true
             },
             OsszetevoMsg::UpdateUnitPrice(index, unit_price) => {
-                if let Some(imput) = self.v.get_mut(index) {
+                let mut new_terv = (**terv).clone();
+                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
                     if let Ok(unit_price) = unit_price.parse() {
                         imput.unit_price = unit_price;
                     }
                 }
+                terv.set(new_terv);
                 true
             },
             _ => {false}
@@ -95,6 +109,7 @@ impl Component for OsszetevoPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
+        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
         
         html! {
             <div class="osszetevok">
@@ -103,7 +118,7 @@ impl Component for OsszetevoPage {
                         <tr>
                             <th>{ "Name" }</th><th>{ "Unit" }</th><th>{ "Time" }</th><th>{ "Unit price" }</th>
                         </tr>
-                        { for self.v.iter().enumerate().map(|(index, value)| {
+                        { for terv.osszetevok.iter().enumerate().map(|(index, value)| {
                             let update_name = link.callback(move |e: InputEvent| {
                                 let input: HtmlInputElement = e.target_unchecked_into();
                                 OsszetevoMsg::UpdateName(index, input.value())

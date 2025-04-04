@@ -9,7 +9,6 @@ pub mod display;
 use display::App;
 
 pub fn init() {
-    
     yew::start_app::<App>();
 }
 
