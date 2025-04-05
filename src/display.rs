@@ -1,33 +1,28 @@
 
 use yew::prelude::*;
-use crate::terv::Terv;
 use std::rc::Rc;
+use std::cell::RefCell;
+
+use crate::terv::{Terv, TervContext};
 use crate::osszetevok::OsszetevoPage;
 use crate::recipe::RecipePage;
 
-#[derive(Clone, PartialEq)]
-pub struct AppState{
-    pub terv: Rc<UseStateHandle<Terv>>,
-}
+// #[derive(Clone, PartialEq)]
+// pub struct AppState{
+//     pub terv: Rc<UseStateHandle<Terv>>,
+// }
 
-impl AppState {
-    pub fn new(state: UseStateHandle<Terv>) -> Self {
-        AppState {
-            terv: Rc::new(state),
-        }
-    }
-}
+// impl AppState {
+//     pub fn new(state: UseStateHandle<Terv>) -> Self {
+//         AppState {
+//             terv: Rc::new(state),
+//         }
+//     }
+// }
 
 pub struct App {
     current_page: &'static str,
-}
-
-impl App {
-    pub fn new() -> Self {
-        App {
-            current_page: "",
-        }
-    }
+    terv: TervContext,
 }
 
 // Display
@@ -43,7 +38,10 @@ impl Component for App {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        App::new()
+        Self {
+            current_page: "",
+            terv: Rc::new(RefCell::new(Terv::new())),
+        }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -65,7 +63,7 @@ impl Component for App {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let state = use_state(|| Terv::new());
+        //let state = use_state(|| Terv::new());
 
         html! {
             <div class="root">
@@ -75,24 +73,24 @@ impl Component for App {
                     <button onclick={link.callback(|_| AppMsg::Meals)}>{ "Étkezések" }</button>
                 </div>
                 <p>{ self.current_page }</p>
-                // <div class="container">
-                //     <ContextProvider<AppState> context={AppState::new(state)}>
-                //     {match self.current_page {
-                //         "Összetevők" => {
-                //             html! {<OsszetevoPage />}
-                //         },
-                //         "Receptek" => {
-                //             html! {<RecipePage />}
-                //             //html! {<p>{ "Receptek" }</p>}
-                //         },
-                //         "Étkezések" => {
-                //             //html! {<Meal />}
-                //             html! {<p>{ "Étkezések" }</p>}
-                //         },
-                //         _ => {html! {<p>{ "Ismeretlen" }</p>}}
-                //     }}
-                //     </ContextProvider<AppState>>
-                // </div>
+                <div class="container">
+                    <ContextProvider<TervContext> context={self.terv.clone()}>
+                    {match self.current_page {
+                        "Összetevők" => {
+                            html! {<OsszetevoPage />}
+                        },
+                        "Receptek" => {
+                            html! {<RecipePage />}
+                            //html! {<p>{ "Receptek" }</p>}
+                        },
+                        "Étkezések" => {
+                            //html! {<Meal />}
+                            html! {<p>{ "Étkezések" }</p>}
+                        },
+                        _ => {html! {<p>{ "Ismeretlen" }</p>}}
+                    }}
+                    </ContextProvider<TervContext>>
+                </div>
             </div>
             
         }

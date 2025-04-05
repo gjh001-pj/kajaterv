@@ -7,11 +7,11 @@ pub struct Meal {
 }
 
 impl Meal {
-    pub fn new(recipe: String, number: u32, day: i32) -> Self {
+    pub fn new() -> Self {
         Meal {
-            recipe,
-            number,
-            day,
+            recipe: String::new(),
+            number: 0,
+            day: 0,
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use crate::recipe::Recipe;
 use crate::osszetevok::Osszetevo;
@@ -14,10 +16,12 @@ pub struct Terv {
 impl Terv {
     pub fn new() -> Self {
         Terv {
-            osszetevok: Vec::new(),
-            recipes: Vec::new(),
-            meals: Vec::new(),
+            osszetevok: vec![Osszetevo::new()],
+            recipes: vec![Recipe::new()],
+            meals: vec![Meal::new()],
             shoppingdays: Vec::new(),
         }
     }
 }
+
+pub type TervContext = Rc<RefCell<Terv>>;

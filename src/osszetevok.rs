@@ -1,8 +1,9 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
+use crate::terv::TervContext;
 
-use crate::display::AppState;
+
 
 #[derive(PartialEq, Clone)]
 pub struct Osszetevo {
@@ -52,55 +53,45 @@ impl Component for OsszetevoPage {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
-        
+        //let terv = use_context::<TervContext>().expect("Terv not found");
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let mut terv = terv.borrow_mut();
+
         match msg {
             OsszetevoMsg::Add => {
-                let mut new_terv = (**terv).clone();
-                new_terv.osszetevok.push(Osszetevo::new());
-                terv.set(new_terv);
+                terv.osszetevok.push(Osszetevo::new());
                 true
             },
             OsszetevoMsg::Remove(index) => {
-                let mut new_terv = (**terv).clone();
-                new_terv.osszetevok.remove(index);
-                terv.set(new_terv);
+                terv.osszetevok.remove(index);
                 true
             }
             OsszetevoMsg::UpdateName(index, name) => {
-                let mut new_terv = (**terv).clone();
-                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
+                if let Some(imput) = terv.osszetevok.get_mut(index) {
                     imput.name = name;
                 }
-                terv.set(new_terv);
                 true
             },
             OsszetevoMsg::UpdateUnit(index, unit) => {
-                let mut new_terv = (**terv).clone();
-                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
+                if let Some(imput) = terv.osszetevok.get_mut(index) {
                     imput.unit = unit;
                 }
-                terv.set(new_terv);
                 true
             },
             OsszetevoMsg::UpdateTime(index, time) => {
-                let mut new_terv = (**terv).clone();
-                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
+                if let Some(imput) = terv.osszetevok.get_mut(index) {
                     if let Ok(time) = time.parse() {
                         imput.time = time;
                     }
                 }
-                terv.set(new_terv);
                 true
             },
             OsszetevoMsg::UpdateUnitPrice(index, unit_price) => {
-                let mut new_terv = (**terv).clone();
-                if let Some(imput) = new_terv.osszetevok.get_mut(index) {
+                if let Some(imput) = terv.osszetevok.get_mut(index) {
                     if let Ok(unit_price) = unit_price.parse() {
                         imput.unit_price = unit_price;
                     }
                 }
-                terv.set(new_terv);
                 true
             },
             _ => {false}
@@ -109,7 +100,9 @@ impl Component for OsszetevoPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
+        //let terv = use_context::<TervContext>().expect("Terv not found");
+        let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
         
         html! {
             <div class="osszetevok">

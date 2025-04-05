@@ -1,9 +1,8 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
-use crate::osszetevok::Osszetevo;
-use crate::display::AppState;
-use crate::terv::Terv;
+//use crate::osszetevok::Osszetevo;
+use crate::terv::{Terv, TervContext};
 
 #[derive(Debug, PartialEq, Clone)]
 struct Ingredient {
@@ -21,14 +20,14 @@ impl Ingredient {
             unit: String::new(),
         }
     }
-    pub fn get_component<'a, 'b>(&'a self, osszetevok: &'b Vec<Osszetevo>) -> Option<&'b Osszetevo> {
-        for osszetevo in osszetevok {
-            if osszetevo.name == self.name {
-                return Some(osszetevo);
-            }
-        }
-        None
-    }
+    // pub fn get_component<'a, 'b>(&'a self, osszetevok: &'b Vec<Osszetevo>) -> Option<&'b Osszetevo> {
+    //     for osszetevo in osszetevok {
+    //         if osszetevo.name == self.name {
+    //             return Some(osszetevo);
+    //         }
+    //     }
+    //     None
+    // }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -54,11 +53,6 @@ pub struct RecipePage {
 }
 
 impl RecipePage {
-    pub fn new() -> Self {
-        RecipePage {
-            current_recipe: None,
-        }
-    }
     pub fn search_recipe(&mut self, name: &str, terv: &Terv) -> Result<(), String> {
         for (index, recipe) in terv.recipes.iter().enumerate() {
             if recipe.name.contains(name) {
@@ -94,18 +88,19 @@ impl Component for RecipePage {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        RecipePage::new()
+        RecipePage {
+            current_recipe: Some(0)
+        }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let mut terv = terv.borrow_mut();
 
         match msg {
             RecipeMsg::AddRecipe => {
-                let mut new_terv = (**terv).clone();
-                new_terv.recipes.push(Recipe::new());
-                self.current_recipe = Some(new_terv.recipes.len() - 1);
-                terv.set(new_terv);
+                terv.recipes.push(Recipe::new());
+                self.current_recipe = Some(terv.recipes.len() - 1);
                 true
             },
             RecipeMsg::SearchRecipe(name) => {
@@ -113,56 +108,47 @@ impl Component for RecipePage {
                 true
             },
             RecipeMsg::UpdateName(name) => {
-                let mut new_terv = (**terv).clone();
-                let recipe = self.get_recipe(&mut new_terv);
+                let recipe = self.get_recipe(&mut terv);
                 recipe.name = name;
                 println!("{:?}", recipe);
-                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateNumber(number) => {
-                let mut new_terv = (**terv).clone();
-                let recipe = self.get_recipe(&mut new_terv);
                 if let Ok(number) = number.parse() {
+                    let recipe = self.get_recipe(&mut terv);
                     recipe.number = number;
                 }
-                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateIngredientName(index, name) => {
-                let mut new_terv = (**terv).clone();
-                let recipe = self.get_recipe(&mut new_terv);
+                let recipe = self.get_recipe(&mut terv);
                 recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 006").name = name;
-                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateQuantity(index, quantity) => {
-                let mut new_terv = (**terv).clone();
-                let recipe = self.get_recipe(&mut new_terv);
                 if let Ok(quantity) = quantity.parse() {
+                    let recipe = self.get_recipe(&mut terv);
                     recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 003").quantity = quantity;
                 }
-                terv.set(new_terv);
                 true
             },
             RecipeMsg::UpdateUnit(index, unit) => {
-                let mut new_terv = (**terv).clone();
-                let recipe = self.get_recipe(&mut new_terv);
+                let recipe = self.get_recipe(&mut terv);
                 recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 002").unit = unit;
-                terv.set(new_terv);
-                true
-            },
-            RecipeMsg::RemoveRecipe => {
-                let mut new_terv = (**terv).clone();
-                new_terv.recipes.remove(self.current_recipe.expect("Nem lehet rossz! 001"));
-                terv.set(new_terv);
                 true
             },
             RecipeMsg::AddIngredient => {
-                let mut new_terv = (**terv).clone();
-                let recipe = self.get_recipe(&mut new_terv);
+                let recipe = self.get_recipe(&mut terv);
                 recipe.ingredients.push(Ingredient::new());
-                terv.set(new_terv);
+                true
+            },
+            RecipeMsg::RemoveIngredient(index) => {
+                let recipe = self.get_recipe(&mut terv);
+                recipe.ingredients.remove(index);
+                true
+            },
+            RecipeMsg::RemoveRecipe => {
+                terv.recipes.remove(self.current_recipe.expect("Nem lehet rossz! 001"));
                 true
             },
             _ => {false}
@@ -171,7 +157,8 @@ impl Component for RecipePage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = ctx.link().context::<AppState>(Callback::noop()).unwrap().0.terv;
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
         
         html! {
             <div class="recipes">
