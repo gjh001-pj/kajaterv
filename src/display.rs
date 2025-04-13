@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use crate::terv::{Terv, TervContext};
 use crate::osszetevok::OsszetevoPage;
 use crate::recipe::RecipePage;
+use crate::meal::MealPage;
 
 // #[derive(Clone, PartialEq)]
 // pub struct AppState{
@@ -81,13 +82,12 @@ impl Component for App {
                         },
                         "Receptek" => {
                             html! {<RecipePage />}
-                            //html! {<p>{ "Receptek" }</p>}
                         },
                         "Étkezések" => {
-                            //html! {<Meal />}
-                            html! {<p>{ "Étkezések" }</p>}
+                            html! {<MealPage />}
+                            //html! {<p>{ "Étkezések" }</p>}
                         },
-                        _ => {html! {<p>{ "Ismeretlen" }</p>}}
+                        _ => {html! {<p>{ "Ismeretlen 3" }</p>}}
                     }}
                     </ContextProvider<TervContext>>
                 </div>

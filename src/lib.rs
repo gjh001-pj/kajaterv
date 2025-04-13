@@ -1,8 +1,10 @@
 pub mod recipe;
 pub mod osszetevok;
 pub mod data;
-pub mod terv;
 pub mod meal;
+pub mod shop;
+pub mod matrix;
+pub mod terv;
 pub mod display;
 
 

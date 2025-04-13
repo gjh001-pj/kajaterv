@@ -1,2 +1,4 @@
 [build]
 dist = "docs"
+target = "index_build.html"
+public_url = "./"

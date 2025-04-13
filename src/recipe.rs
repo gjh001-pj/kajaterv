@@ -1,14 +1,15 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
+use std::ops::{Deref, DerefMut};
 
 //use crate::osszetevok::Osszetevo;
 use crate::terv::{Terv, TervContext};
 
 #[derive(Debug, PartialEq, Clone)]
-struct Ingredient {
-    name: String,
-    quantity: f64,
-    unit: String,
+pub struct Ingredient {
+    pub name: String,
+    pub quantity: f64,
+    pub unit: String,
 }
 
 
@@ -32,9 +33,9 @@ impl Ingredient {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Recipe {
-    name: String,
-    number: u32,
-    ingredients: Vec<Ingredient>,
+    pub name: String,
+    pub number: u32,
+    pub ingredients: Vec<Ingredient>,
 }
 
 impl Recipe {
@@ -44,6 +45,47 @@ impl Recipe {
             number: 0,
             ingredients: Vec::new(),
         }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub struct Recipes(pub Vec<Recipe>);
+
+impl Recipes {
+    pub fn new() -> Self {
+        Recipes (Vec::new())
+    }
+
+    pub fn exist(&self, recipe_name: &str) -> bool {
+        for recipe in self.iter() {
+            if recipe.name == recipe_name {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn get_recipe(&mut self, recipe_name: &str) -> Option<&mut Recipe> {
+        for recipe in self.iter_mut() {
+            if recipe.name == recipe_name {
+                return Some(recipe);
+            }
+        }
+        None
+    }
+}
+
+impl Deref for Recipes {
+    type Target = Vec<Recipe>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Recipes {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -63,7 +105,7 @@ impl RecipePage {
         Err(format!("Nem található ilyen recept: {name}"))
     }
 
-    fn get_recipe<'a, 'b>(&'a mut self, terv: &'b mut Terv) -> &'b mut Recipe {
+    fn get_curr_recipe<'a, 'b>(&'a mut self, terv: &'b mut Terv) -> &'b mut Recipe {
         terv.recipes.get_mut(self.current_recipe.expect("Nem lehet rossz! 004")).expect("Nem lehet rossz! 005")
     }
 }
@@ -108,42 +150,42 @@ impl Component for RecipePage {
                 true
             },
             RecipeMsg::UpdateName(name) => {
-                let recipe = self.get_recipe(&mut terv);
+                let recipe = self.get_curr_recipe(&mut terv);
                 recipe.name = name;
                 println!("{:?}", recipe);
                 true
             },
             RecipeMsg::UpdateNumber(number) => {
                 if let Ok(number) = number.parse() {
-                    let recipe = self.get_recipe(&mut terv);
+                    let recipe = self.get_curr_recipe(&mut terv);
                     recipe.number = number;
                 }
                 true
             },
             RecipeMsg::UpdateIngredientName(index, name) => {
-                let recipe = self.get_recipe(&mut terv);
+                let recipe = self.get_curr_recipe(&mut terv);
                 recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 006").name = name;
                 true
             },
             RecipeMsg::UpdateQuantity(index, quantity) => {
                 if let Ok(quantity) = quantity.parse() {
-                    let recipe = self.get_recipe(&mut terv);
+                    let recipe = self.get_curr_recipe(&mut terv);
                     recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 003").quantity = quantity;
                 }
                 true
             },
             RecipeMsg::UpdateUnit(index, unit) => {
-                let recipe = self.get_recipe(&mut terv);
+                let recipe = self.get_curr_recipe(&mut terv);
                 recipe.ingredients.get_mut(index).expect("Nem lehet rossz! 002").unit = unit;
                 true
             },
             RecipeMsg::AddIngredient => {
-                let recipe = self.get_recipe(&mut terv);
+                let recipe = self.get_curr_recipe(&mut terv);
                 recipe.ingredients.push(Ingredient::new());
                 true
             },
             RecipeMsg::RemoveIngredient(index) => {
-                let recipe = self.get_recipe(&mut terv);
+                let recipe = self.get_curr_recipe(&mut terv);
                 recipe.ingredients.remove(index);
                 true
             },
@@ -165,8 +207,8 @@ impl Component for RecipePage {
                 <div class="toolbar">
                     <button onclick={link.callback(|_| RecipeMsg::AddRecipe)}>{ "Add recipe" }</button>
                     //<label for="recipe_search">{ "Kerressen rá egy receptre" }</label>
-                    <input type="text" list="recipe_list" id="recipe_search" name="recipe_search" oninput={
-                        link.callback(move |e: InputEvent| {
+                    <input type="text" list="recipe_list" id="recipe_search" name="recipe_search" onchange={
+                        link.callback(move |e: Event| {
                         let input: HtmlInputElement = e.target_unchecked_into();
                         RecipeMsg::SearchRecipe(input.value())})} />
                     <datalist id="recipe_list">
@@ -185,14 +227,14 @@ impl Component for RecipePage {
                             <table>
                                 <tr>
                                     <th>{ "Név:" }</th>
-                                    <th><input type="text" value={recipe.name.clone()} oninput={link.callback(move |e: InputEvent| {
+                                    <th><input type="text" value={recipe.name.clone()} onchange={link.callback(move |e: Event| {
                                         let input: HtmlInputElement = e.target_unchecked_into();
                                         RecipeMsg::UpdateName(input.value())})} /></th>
                                 </tr>
                                 <tr>
                                     <th>{ "Létszám:" }</th>
                                     <th><input type="number" min="0" step="1" value={recipe.number.to_string()} 
-                                        oninput={link.callback(move |e: InputEvent| {
+                                        onchange={link.callback(move |e: Event| {
                                         let input: HtmlInputElement = e.target_unchecked_into();
                                         RecipeMsg::UpdateNumber(input.value())})} /></th>
                                 </tr>
@@ -200,26 +242,26 @@ impl Component for RecipePage {
                                     <th>{ "Összetevő" }</th><th>{ "Mennyiség" }</th><th>{ "Mértékegység" }</th>
                                 </tr>
                                 { for recipe.ingredients.iter().enumerate().map(|(index, value)| {
-                                    let update_name = link.callback(move |e: InputEvent| {
+                                    let update_name = link.callback(move |e: Event| {
                                         let input: HtmlInputElement = e.target_unchecked_into();
                                         RecipeMsg::UpdateIngredientName(index, input.value())
                                     });
         
-                                    let update_quantity = link.callback(move |e: InputEvent| {
+                                    let update_quantity = link.callback(move |e: Event| {
                                         let input: HtmlInputElement = e.target_unchecked_into();
                                         RecipeMsg::UpdateQuantity(index, input.value())
                                     });
         
-                                    let update_unit = link.callback(move |e: InputEvent| {
+                                    let update_unit = link.callback(move |e: Event| {
                                         let input: HtmlInputElement = e.target_unchecked_into();
                                         RecipeMsg::UpdateUnit(index, input.value())
                                     });
         
                                     html! {
                                         <tr>
-                                            <th><input type="text" value={value.name.clone()} oninput={update_name} /></th>
-                                            <th><input type="number" step="any" value={value.quantity.to_string()} oninput={update_quantity} /></th>
-                                            <th><input type="text" value={value.unit.clone()} oninput={update_unit} /></th>
+                                            <th><input type="text" value={value.name.clone()} onchange={update_name} /></th>
+                                            <th><input type="number" step="any" value={value.quantity.to_string()} onchange={update_quantity} /></th>
+                                            <th><input type="text" value={value.unit.clone()} onchange={update_unit} /></th>
                                             <th><button onclick={link.callback(move |_| RecipeMsg::RemoveIngredient(index))}>{ "Remove" }</button></th>
                                         </tr>
                                     }

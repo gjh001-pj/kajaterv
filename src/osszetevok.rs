@@ -1,8 +1,8 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
+use std::ops::{Deref, DerefMut};
 
 use crate::terv::TervContext;
-
 
 
 #[derive(PartialEq, Clone)]
@@ -24,6 +24,56 @@ impl Osszetevo {
         }
     }
 }
+
+#[derive(PartialEq, Clone)]
+pub struct Osszetevok(pub Vec<Osszetevo>);
+
+impl Osszetevok {
+    pub fn exist(&self, name: &str) -> bool {
+        for osszetevo in self.iter() {
+            if osszetevo.name == name {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn get(&mut self, name: &str) -> Option<&mut Osszetevo> {
+        for osszetevo in self.iter_mut() {
+            if osszetevo.name == name {
+                return Some(osszetevo);
+            }
+        }
+        return None
+    }
+
+    pub fn get_def(&mut self) -> Option<&mut Osszetevo> {
+        self.get("default")
+    }
+
+    pub fn get_or_def(&mut self, name: &str) -> Option<&mut Osszetevo> {
+        if self.exist(name) {
+            return self.get(name);
+        } else {
+            return self.get_def();
+        }
+    }
+}
+
+impl Deref for Osszetevok {
+    type Target = Vec<Osszetevo>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Osszetevok {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 
 pub struct OsszetevoPage {}
 
@@ -112,34 +162,34 @@ impl Component for OsszetevoPage {
                             <th>{ "Name" }</th><th>{ "Unit" }</th><th>{ "Time" }</th><th>{ "Unit price" }</th>
                         </tr>
                         { for terv.osszetevok.iter().enumerate().map(|(index, value)| {
-                            let update_name = link.callback(move |e: InputEvent| {
+                            let update_name = link.callback(move |e: Event| {
                                 let input: HtmlInputElement = e.target_unchecked_into();
                                 OsszetevoMsg::UpdateName(index, input.value())
                             });
 
-                            let update_unit = link.callback(move |e: InputEvent| {
+                            let update_unit = link.callback(move |e: Event| {
                                 let input: HtmlInputElement = e.target_unchecked_into();
                                 OsszetevoMsg::UpdateUnit(index, input.value())
                             });
 
-                            let update_time = link.callback(move |e: InputEvent| {
+                            let update_time = link.callback(move |e: Event| {
                                 let input: HtmlInputElement = e.target_unchecked_into();
                                 OsszetevoMsg::UpdateTime(index, input.value())
                             });
 
-                            let update_unit_price = link.callback(move |e: InputEvent| {
+                            let update_unit_price = link.callback(move |e: Event| {
                                 let input: HtmlInputElement = e.target_unchecked_into();
                                 OsszetevoMsg::UpdateUnitPrice(index, input.value())
                             });
 
                             html! {
                                 <tr>
-                                    <th><input type="text" value={value.name.clone()} oninput={update_name} /></th>
-                                    <th><input type="text" value={value.unit.clone()} oninput={update_unit} /></th>
+                                    <th><input type="text" value={value.name.clone()} onchange={update_name} /></th>
+                                    <th><input type="text" value={value.unit.clone()} onchange={update_unit} /></th>
                                     <th><input type="number" min="0"
                                         value={value.time.to_string()}
-                                        oninput={update_time} /></th>
-                                    <th><input type="number" step="any" value={value.unit_price.to_string()} oninput={update_unit_price} /></th>
+                                        onchange={update_time} /></th>
+                                    <th><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} /></th>
                                     <th><button onclick={link.callback(move |_| OsszetevoMsg::Remove(index))}>{ "Remove" }</button></th>
                                 </tr>
                             }

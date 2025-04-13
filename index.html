@@ -3,7 +3,18 @@
     <head>
         <meta charset="utf-8" />
         <title>Yew App</title>
-        <link data-trunk rel="rust" href="Cargo.toml" />
+        
+<script type="module">
+import init, * as bindings from './kajaterv-d40d37d8e11e0fcd.js';
+const wasm = await init({ module_or_path: './kajaterv-d40d37d8e11e0fcd_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
         <!--<link data-trunk rel="css" href="style.css" />-->
-    </head>
+    <link rel="modulepreload" href="./kajaterv-d40d37d8e11e0fcd.js" crossorigin="anonymous" integrity="sha384-E5N3ih7KAcr15dl2rpVfSTMHdM1u7jebaHbVZza+mlrjCd5tOS5+pAGOoW5HSDWn"><link rel="preload" href="./kajaterv-d40d37d8e11e0fcd_bg.wasm" crossorigin="anonymous" integrity="sha384-QoumeyDxEbxlI5zT5rtXEbLSCC4VvqFzJiMI05P6BKi9ZWXn7LredxaAnsJAIrBv" as="fetch" type="application/wasm"></head>
 </html>
