@@ -6,7 +6,7 @@ use crate::terv::TervContext;
 use crate::shop::Shopping;
 
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Meal {
     pub recipe: String,
     pub number: u32,
@@ -23,7 +23,7 @@ impl Meal {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Meals(pub Vec<Meal>);
 
 impl Deref for Meals {

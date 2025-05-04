@@ -3,14 +3,21 @@ use std::collections::HashMap;
 
 use crate::shop::Shopping;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Sub {
     pub quantity: f64,
     pub recipe: String,
+    pub number: u32,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Subs(pub Vec<Sub>);
+
+impl Subs {
+    pub fn new() -> Subs {
+        Subs (Vec::new())
+    }
+}
 
 impl Deref for Subs {
     type Target = Vec<Sub>;
@@ -26,7 +33,7 @@ impl DerefMut for Subs {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Matrix {
     pub mat: HashMap<Shopping, HashMap<String, Subs>>
 }

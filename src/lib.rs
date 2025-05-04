@@ -4,6 +4,9 @@ pub mod data;
 pub mod meal;
 pub mod shop;
 pub mod matrix;
+pub mod beszer;
+pub mod keyboard;
+
 pub mod terv;
 pub mod display;
 

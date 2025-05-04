@@ -1,4 +1,5 @@
 use yew::prelude::*;
+use yew::virtual_dom::VNode;
 use web_sys::HtmlInputElement;
 use std::ops::{Deref, DerefMut};
 
@@ -201,6 +202,20 @@ impl Component for RecipePage {
         let link = ctx.link();
         let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
         let terv = terv.borrow();
+
+        let mut osszetevo_name_list: Vec<VNode> = Vec::new();
+        if let Some(recipe_index) = self.current_recipe {
+            if let Some(recipe) = terv.recipes.get(recipe_index) {
+                let all_osszetevo_name_list: Vec<&String> = terv.osszetevok.iter().map(|ossz| &ossz.name).collect();
+                osszetevo_name_list = all_osszetevo_name_list.iter().map(|&rec_ossz| {
+                    if !recipe.ingredients.iter().map(|x| &x.name).collect::<Vec<&String>>().contains(&rec_ossz) {
+                        html! {<option value={rec_ossz.clone()} />}
+                    } else {
+                        html! {}
+                    }
+                }).collect();
+            }
+        }
         
         html! {
             <div class="recipes">
@@ -215,6 +230,9 @@ impl Component for RecipePage {
                         { for terv.recipes.iter().map(|value| {
                             html! {<option value={value.name.clone()} />}
                         })}
+                    </datalist>
+                    <datalist id="osszetevo_name_list">
+                        { for osszetevo_name_list }
                     </datalist>
                     <p>{ format!("Kiválasztott recept: {}", match self.current_recipe {
                         Some(index) => {terv.recipes.get(index).unwrap().name.clone()},
@@ -259,7 +277,7 @@ impl Component for RecipePage {
         
                                     html! {
                                         <tr>
-                                            <th><input type="text" value={value.name.clone()} onchange={update_name} /></th>
+                                            <th><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name} /></th>
                                             <th><input type="number" step="any" value={value.quantity.to_string()} onchange={update_quantity} /></th>
                                             <th><input type="text" value={value.unit.clone()} onchange={update_unit} /></th>
                                             <th><button onclick={link.callback(move |_| RecipeMsg::RemoveIngredient(index))}>{ "Remove" }</button></th>

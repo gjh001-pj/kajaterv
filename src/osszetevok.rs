@@ -1,16 +1,18 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
 use std::ops::{Deref, DerefMut};
+use gloo::console::log;
 
 use crate::terv::TervContext;
+use crate::keyboard::TableFocusNavigator;
 
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Osszetevo {
     pub name: String,
-    unit: String,
-    time: u32,
-    unit_price: f64,
+    pub unit: String,
+    pub time: u32,
+    pub unit_price: f64,
 }
 
 
@@ -25,7 +27,7 @@ impl Osszetevo {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Osszetevok(pub Vec<Osszetevo>);
 
 impl Osszetevok {
@@ -38,7 +40,28 @@ impl Osszetevok {
         return false;
     }
 
-    pub fn get(&mut self, name: &str) -> Option<&mut Osszetevo> {
+    pub fn by_name(&self, name: &str) -> Option<& Osszetevo> {
+        for osszetevo in self.iter() {
+            if osszetevo.name == name {
+                return Some(osszetevo);
+            }
+        }
+        return None
+    }
+
+    pub fn by_name_def(&self) -> Option<&Osszetevo> {
+        self.by_name("default")
+    }
+
+    pub fn by_name_or_def(&self, name: &str) -> Option<&Osszetevo> {
+        if self.exist(name) {
+            return self.by_name(name);
+        } else {
+            return self.by_name_def();
+        }
+    }
+
+    pub fn by_name_mut(&mut self, name: &str) -> Option<&mut Osszetevo> {
         for osszetevo in self.iter_mut() {
             if osszetevo.name == name {
                 return Some(osszetevo);
@@ -47,15 +70,15 @@ impl Osszetevok {
         return None
     }
 
-    pub fn get_def(&mut self) -> Option<&mut Osszetevo> {
-        self.get("default")
+    pub fn by_name_def_mut(&mut self) -> Option<&mut Osszetevo> {
+        self.by_name_mut("default")
     }
 
-    pub fn get_or_def(&mut self, name: &str) -> Option<&mut Osszetevo> {
+    pub fn by_name_or_def_mut(&mut self, name: &str) -> Option<&mut Osszetevo> {
         if self.exist(name) {
-            return self.get(name);
+            return self.by_name_mut(name);
         } else {
-            return self.get_def();
+            return self.by_name_def_mut();
         }
     }
 }
@@ -75,11 +98,15 @@ impl DerefMut for Osszetevok {
 }
 
 
-pub struct OsszetevoPage {}
+pub struct OsszetevoPage {
+    pub focus_nav: TableFocusNavigator,
+}
 
 impl OsszetevoPage {
     pub fn new() -> Self {
-        OsszetevoPage {}
+        OsszetevoPage {
+            focus_nav: TableFocusNavigator::new(1, 4),
+        }
     }
 }
 
@@ -92,6 +119,8 @@ pub enum OsszetevoMsg {
     UpdateUnitPrice(usize, String),
     Add,
     Remove(usize),
+    KeyPressed(usize, usize, KeyboardEvent),
+    MouseClick,
 }
 
 impl Component for OsszetevoPage {
@@ -110,10 +139,12 @@ impl Component for OsszetevoPage {
         match msg {
             OsszetevoMsg::Add => {
                 terv.osszetevok.push(Osszetevo::new());
+                self.focus_nav.build(self.focus_nav.rows + 1, 4);
                 true
             },
             OsszetevoMsg::Remove(index) => {
                 terv.osszetevok.remove(index);
+                self.focus_nav.build(self.focus_nav.rows - 1, 4);
                 true
             }
             OsszetevoMsg::UpdateName(index, name) => {
@@ -144,19 +175,43 @@ impl Component for OsszetevoPage {
                 }
                 true
             },
+            OsszetevoMsg::KeyPressed(row, col, e) => {
+                self.focus_nav.handle_key(row, col, e);
+                false
+            },
+            OsszetevoMsg::MouseClick => {
+                self.focus_nav.set_edit();
+                false
+            }
             _ => {false}
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        //let terv = use_context::<TervContext>().expect("Terv not found");
         let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
         let terv = terv.borrow();
+
+        let all_osszetevo_name_list: Vec<&String> = terv.recipes.iter().map(|recipe| {
+            recipe.ingredients.iter().map(|ingredient| {
+                &ingredient.name
+            })
+        }).flatten().collect();
+
+        let osszetevo_name_list = all_osszetevo_name_list.iter().map(|&rec_ossz| {
+            if !terv.osszetevok.iter().map(|x| &x.name).collect::<Vec<&String>>().contains(&rec_ossz) {
+                html! {<option value={rec_ossz.clone()} />}
+            } else {
+                html! {}
+            }
+        });
         
         html! {
             <div class="osszetevok">
                 <div class="table">
+                    <datalist id="osszetevo_name_list">
+                        { for osszetevo_name_list }
+                    </datalist>
                     <table>
                         <tr>
                             <th>{ "Name" }</th><th>{ "Unit" }</th><th>{ "Time" }</th><th>{ "Unit price" }</th>
@@ -182,14 +237,25 @@ impl Component for OsszetevoPage {
                                 OsszetevoMsg::UpdateUnitPrice(index, input.value())
                             });
 
+                            let onkeydown = |col| link.callback(move |e: KeyboardEvent| {
+                                OsszetevoMsg::KeyPressed(index, col, e)
+                            });
+
+                            let onclick = link.callback(move |_| {
+                                OsszetevoMsg::MouseClick
+                            });
+
                             html! {
                                 <tr>
-                                    <th><input type="text" value={value.name.clone()} onchange={update_name} /></th>
-                                    <th><input type="text" value={value.unit.clone()} onchange={update_unit} /></th>
+                                    <th><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name} 
+                                        onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></th>
+                                    <th><input type="text" value={value.unit.clone()} onchange={update_unit} 
+                                        onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></th>
                                     <th><input type="number" min="0"
-                                        value={value.time.to_string()}
-                                        onchange={update_time} /></th>
-                                    <th><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} /></th>
+                                        value={value.time.to_string()} onchange={update_time} 
+                                        onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></th>
+                                    <th><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} 
+                                        onkeydown={onkeydown(3)} ref={self.focus_nav.refs[index][3].clone()} onclick={onclick.clone()} /></th>
                                     <th><button onclick={link.callback(move |_| OsszetevoMsg::Remove(index))}>{ "Remove" }</button></th>
                                 </tr>
                             }
