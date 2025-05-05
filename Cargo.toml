@@ -6,7 +6,8 @@ edition = "2021"
 [dependencies]
 yew = "0.19.3"
 web-sys = { version = "0.3", features = ["HtmlInputElement"]}
-gloo = { version = "0.11", features = ["console"] }
+gloo = { version = "0.11", features = ["console", "events"] }
+wasm-bindgen = "0.2"
 
 [profile.dev]
 opt-level = 0
