@@ -6,7 +6,7 @@ use crate::recipe::{Recipes, Recipe, Ingredient};
 use crate::osszetevok::{Osszetevo, Osszetevok};
 use crate::meal::{Meal, Meals};
 use crate::matrix::{Matrix, Subs, Sub};
-use crate::shop::{Shoppings, Shopping};
+use crate::shop::{Shoppings, Shopping, ShopDay};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Terv {
@@ -23,7 +23,7 @@ impl Terv {
             osszetevok: Osszetevok(vec![Osszetevo::new()]),
             recipes: Recipes(vec![Recipe::new()]),
             meals: Meals(vec![Meal::new()]),
-            shoppingdays: Shoppings(vec![Shopping::Name(String::from(""))]),
+            shoppingdays: Shoppings(vec![Shopping::new()]),
             matrix: Matrix::new(),
         }
     }
@@ -36,14 +36,14 @@ impl Terv {
         let mut vdays: Vec<i32> = Vec::new();
 
         for shoppingday in self.shoppingdays.iter() {
-            match shoppingday {
-                Shopping::Day(day) => vdays.push(*day),
-                Shopping::Name(name) => {
+            match &shoppingday.day {
+                ShopDay::Day(day) => vdays.push(*day),
+                ShopDay::Name(name) => {
                     for (index, meal) in meals.clone().iter().enumerate() {
-                        if let Shopping::Name(meal_day) = &meal.day{
+                        if let ShopDay::Name(meal_day) = &meal.day{
                             if meal_day == name {
                                 meals.remove(index);
-                                let hash = self.matrix.get_mut(shoppingday).unwrap();
+                                let hash = self.matrix.get_mut(&shoppingday.day).unwrap();
                                 let recipe = self.recipes.get_recipe(&meal.recipe).unwrap();
                                 for ingredient in recipe.ingredients.iter() {
                                     let sub = Sub{
@@ -106,11 +106,11 @@ impl Terv {
             for ingredient in self.recipes.get_recipe(&meal.recipe).unwrap().ingredients.iter() {
                 println!("vasar: {:?}, name: {}, res: {:?}", vasar, ingredient.name, get_shopping_days(&vasar, &ingredient.name));
                 let vday = get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max().unwrap().clone();
-                let hash = match self.matrix.get_mut(&Shopping::Day(vday)) {
+                let hash = match self.matrix.get_mut(&ShopDay::Day(vday)) {
                     Some(h) => h,
                     None => {
-                        self.matrix.insert(Shopping::Day(vday), HashMap::new());
-                        self.matrix.get_mut(&Shopping::Day(vday)).unwrap()
+                        self.matrix.insert(ShopDay::Day(vday), HashMap::new());
+                        self.matrix.get_mut(&ShopDay::Day(vday)).unwrap()
                     }
                 };
                 let sub = Sub{
@@ -158,9 +158,12 @@ fn test_calculate_matrix() {
         meals: Meals(vec![Meal {
             recipe: String::from("alma"),
             number: 10,
-            day: Shopping::Day(2)
+            day: ShopDay::Day(2)
         }]),
-        shoppingdays: Shoppings(vec![Shopping::Day(1)]),
+        shoppingdays: Shoppings(vec![Shopping {
+            day: ShopDay::Day(2),
+            name: String::from("kettő"),
+        }]),
         matrix: Matrix::new(),
     };
 

@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::collections::HashMap;
 
-use crate::shop::Shopping;
+use crate::shop::{Shopping, ShopDay};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Sub {
@@ -35,7 +35,7 @@ impl DerefMut for Subs {
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Matrix {
-    pub mat: HashMap<Shopping, HashMap<String, Subs>>
+    pub mat: HashMap<ShopDay, HashMap<String, Subs>>
 }
 
 impl Matrix {
@@ -47,7 +47,7 @@ impl Matrix {
 }
 
 impl Deref for Matrix {
-    type Target = HashMap<Shopping, HashMap<String, Subs>>;
+    type Target = HashMap<ShopDay, HashMap<String, Subs>>;
 
     fn deref(&self) -> &Self::Target {
         &self.mat

@@ -11,12 +11,13 @@ pub mod dirs {
     pub const ALL   : u8 = 0b1111;
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum EditMode {
     Edit,
     View,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct TableFocusNavigator {
     pub refs: Vec<Vec<NodeRef>>,
     pub dirs: Vec<Vec<u8>>,
@@ -30,15 +31,19 @@ impl TableFocusNavigator {
         let mut dirs: Vec<Vec<u8>> = (0..rows).map(|_|
             (0..cols).map(|_| dirs::ALL).collect()
         ).collect();
-        for x in dirs.first_mut().unwrap() {
-            *x &= dirs::ALL & !dirs::UP;
+        if rows > 0 {
+            for x in dirs.first_mut().unwrap() {
+                *x &= dirs::ALL & !dirs::UP;
+            }
+            for x in dirs.last_mut().unwrap() {
+                *x &= dirs::ALL & !dirs::DOWN;
+            }
         }
-        for x in dirs.last_mut().unwrap() {
-            *x &= dirs::ALL & !dirs::DOWN;
-        }
-        for row in dirs.iter_mut() {
-            *row.first_mut().unwrap() &= dirs::ALL & !dirs::LEFT;
-            *row.last_mut().unwrap() &= dirs::ALL & !dirs::RIGHT;
+        if cols > 0 {
+            for row in dirs.iter_mut() {
+                *row.first_mut().unwrap() &= dirs::ALL & !dirs::LEFT;
+                *row.last_mut().unwrap() &= dirs::ALL & !dirs::RIGHT;
+            }
         }
 
         let refs = (0..rows).map(|_| {

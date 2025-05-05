@@ -6,21 +6,21 @@ use crate::meal::{MealMsg, MealPage};
 use crate::terv::TervContext;
 
 #[derive(PartialEq, Clone, Debug, Eq, Hash)]
-pub enum Shopping {
+pub enum ShopDay {
     Day(i32),
     Name(String),
 }
 
-impl Shopping {
+impl ShopDay {
     pub fn to_string(&self) -> String {
         match self {
-            Shopping::Day(number) => number.to_string(),
-            Shopping::Name(name) => name.clone(),
+            ShopDay::Day(number) => number.to_string(),
+            ShopDay::Name(name) => name.clone(),
         }
     }
 
     pub fn as_day(&self) -> &i32 {
-        if let Shopping::Day(day) = self {
+        if let ShopDay::Day(day) = self {
             return day;
         } else {
             panic!("Not Day {:?}", self);
@@ -28,7 +28,7 @@ impl Shopping {
     }
 
     pub fn as_mut_day(&mut self) -> &mut i32 {
-        if let Shopping::Day(day) = self {
+        if let ShopDay::Day(day) = self {
             return day;
         } else {
             panic!("Not Day {:?}", self);
@@ -36,7 +36,7 @@ impl Shopping {
     }
 
     pub fn as_name(&self) -> &String {
-        if let Shopping::Name(name) = self {
+        if let ShopDay::Name(name) = self {
             return name;
         } else {
             panic!("Not Name {:?}", self);
@@ -44,10 +44,25 @@ impl Shopping {
     }
 
     pub fn as_mut_name(&mut self) -> &mut String {
-        if let Shopping::Name(name) = self {
+        if let ShopDay::Name(name) = self {
             return name;
         } else {
             panic!("Not Name {:?}", self);
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Eq, Hash)]
+pub struct Shopping {
+    pub day: ShopDay,
+    pub name: String,
+}
+
+impl Shopping {
+    pub fn new() -> Self {
+        Shopping {
+            day: ShopDay::Name(String::from("")),
+            name: String::from(""),
         }
     }
 }
@@ -79,6 +94,7 @@ pub struct ShopPage {}
 
 pub enum ShopMsg {
     Add,
+    UpdateName(usize, String),
     UpdateShop(usize, String),
     Remove(usize),
 }
@@ -96,14 +112,18 @@ impl Component for ShopPage {
         let mut terv = terv.borrow_mut();
         match msg {
             ShopMsg::Add => {
-                terv.shoppingdays.push(Shopping::Name(String::from("")));
+                terv.shoppingdays.push(Shopping::new());
+                true
+            },
+            ShopMsg::UpdateName(index, name) => {
+                terv.shoppingdays.get_mut(index).unwrap().name = name;
                 true
             },
             ShopMsg::UpdateShop(index, dayname) => {
                 if let Ok(day) = dayname.parse() {
-                    *terv.shoppingdays.get_mut(index).unwrap() = Shopping::Day(day);
+                    terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
-                    *terv.shoppingdays.get_mut(index).unwrap() = Shopping::Name(dayname);
+                    terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Name(dayname);
                 }
                 true
             },
@@ -125,8 +145,16 @@ impl Component for ShopPage {
             <div class="shop" >
                 <button onclick={link.callback(move |_| ShopMsg::Add)}>{ "Add" }</button>
                 <table>
-                    <tr><th>{ "Day / Name" }</th></tr>
+                    <tr>
+                        <th>{ "Name" }</th>
+                        <th>{ "Day / Name" }</th>
+                    </tr>
                     { for terv.shoppingdays.iter().enumerate().map(|(index, value)| {
+                        let update_name = link.callback(move |e: Event| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            ShopMsg::UpdateShop(index, input.value())
+                        });
+
                         let update_shop = link.callback(move |e: Event| {
                             let input: HtmlInputElement = e.target_unchecked_into();
                             ShopMsg::UpdateShop(index, input.value())
@@ -134,7 +162,8 @@ impl Component for ShopPage {
 
                         html! {
                             <tr>
-                                <th><input type="text" value={value.to_string()} onchange={update_shop}/></th>
+                                <th><input type="text" value={value.name.clone()} onchange={update_name}/></th>
+                                <th><input type="text" value={value.day.to_string()} onchange={update_shop}/></th>
                                 <th><button onclick={link.callback(move |_| ShopMsg::Remove(index))}>{ "Remove" }</button></th>
                             </tr>
                         }

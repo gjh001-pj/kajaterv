@@ -2,15 +2,16 @@ use yew::prelude::*;
 use web_sys::HtmlInputElement;
 use std::ops::{Deref, DerefMut};
 
+use crate::keyboard::TableFocusNavigator;
 use crate::terv::TervContext;
-use crate::shop::Shopping;
+use crate::shop::{Shopping, ShopDay};
 
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Meal {
     pub recipe: String,
     pub number: u32,
-    pub day: Shopping,
+    pub day: ShopDay,
 }
 
 impl Meal {
@@ -18,7 +19,7 @@ impl Meal {
         Meal {
             recipe: String::new(),
             number: 0,
-            day: Shopping::Day(0),
+            day: ShopDay::Day(0),
         }
     }
 }
@@ -40,7 +41,9 @@ impl DerefMut for Meals {
     }
 }
 
-pub struct MealPage {}
+pub struct MealPage {
+    pub focus_nav: TableFocusNavigator,
+}
 
 pub enum MealMsg {
     AddMeal,
@@ -49,6 +52,8 @@ pub enum MealMsg {
     UpdateDay(usize, String),
 
     RemoveMeal(usize),
+    KeyPressed(usize, usize, KeyboardEvent),
+    MouseClick,
 }
 
 impl Component for MealPage {
@@ -56,7 +61,9 @@ impl Component for MealPage {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        MealPage {}
+        MealPage {
+            focus_nav: TableFocusNavigator::new(1, 3),
+        }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -65,6 +72,7 @@ impl Component for MealPage {
         match msg {
             MealMsg::AddMeal => {
                 terv.meals.push(Meal::new());
+                self.focus_nav.build(terv.meals.len(), 3);
                 true
             },
             MealMsg::UpdateRecipe(index, recipe) => {
@@ -79,11 +87,24 @@ impl Component for MealPage {
             },
             MealMsg::UpdateDay(index, day) => {
                 if let Ok(day) = day.parse() {
-                    terv.meals.get_mut(index).unwrap().day = Shopping::Day(day);
+                    terv.meals.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
-                    terv.meals.get_mut(index).unwrap().day = Shopping::Name(day);
+                    terv.meals.get_mut(index).unwrap().day = ShopDay::Name(day);
                 }
                 true
+            },
+            MealMsg::RemoveMeal(index) => {
+                terv.meals.remove(index);
+                self.focus_nav.build(terv.meals.len(), 3);
+                true
+            }
+            MealMsg::KeyPressed(row, col, e) => {
+                self.focus_nav.handle_key(row, col, e);
+                false
+            },
+            MealMsg::MouseClick => {
+                self.focus_nav.set_edit();
+                false
             },
             _ => {true}
         }
@@ -122,11 +143,22 @@ impl Component for MealPage {
                             MealMsg::UpdateDay(index, input.value())
                         });
 
+                        let onkeydown = |col| link.callback(move |e: KeyboardEvent| {
+                            MealMsg::KeyPressed(index, col, e)
+                        });
+
+                        let onclick = link.callback(move |_| {
+                            MealMsg::MouseClick
+                        });
+
                         html! {
                             <tr>
-                                <th><input type="text" list="recipe_list" value={value.recipe.clone()} onchange={update_recipe} /></th>
-                                <th><input type="number" min="0" value={value.number.to_string()} onchange={update_number} /></th>
-                                <th><input type="number" value={value.day.to_string()} onchange={update_day} /></th>
+                                <th><input type="text" list="recipe_list" value={value.recipe.clone()} onchange={update_recipe}
+                                    onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></th>
+                                <th><input type="number" min="0" value={value.number.to_string()} onchange={update_number}
+                                    onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></th>
+                                <th><input type="number" value={value.day.to_string()} onchange={update_day}
+                                    onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></th>
                                 <th><button onclick={link.callback(move |_| MealMsg::RemoveMeal(index))}>{ "Remove" }</button></th>
                                 if !terv.recipes.exist(&value.recipe) {
                                     <th>{ "A recept nem található" }</th>

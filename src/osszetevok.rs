@@ -182,7 +182,7 @@ impl Component for OsszetevoPage {
             OsszetevoMsg::MouseClick => {
                 self.focus_nav.set_edit();
                 false
-            }
+            },
             _ => {false}
         }
     }
