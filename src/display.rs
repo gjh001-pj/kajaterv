@@ -10,6 +10,7 @@ use crate::recipe::RecipePage;
 use crate::meal::MealPage;
 use crate::shop::ShopPage;
 use crate::beszer::BeszerPage;
+use crate::socket::Socket;
 
 // #[derive(Clone, PartialEq)]
 // pub struct AppState{
@@ -101,6 +102,9 @@ impl Component for App {
 
         html! {
             <div class="root">
+                <div>
+                    <Socket />
+                </div>
                 <div class="menu">
                     <button onclick={link.callback(|_| AppMsg::Osszetevok)}>{ "Összetevők" }</button>
                     <button onclick={link.callback(|_| AppMsg::Recipes)}>{ "Receptek" }</button>
