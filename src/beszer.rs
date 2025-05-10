@@ -4,6 +4,7 @@ use web_sys::HtmlInputElement;
 use crate::terv::TervContext;
 use crate::shop::Shopping;
 use crate::matrix::{Sub, Subs};
+use crate::display::AppProps;
 
 pub struct BeszerPage {}
 
@@ -13,7 +14,7 @@ pub enum BeszerMsg {
 
 impl Component for BeszerPage {
     type Message = BeszerMsg;
-    type Properties = ();
+    type Properties = AppProps;
 
     fn create(ctx: &Context<Self>) -> Self {
         let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;

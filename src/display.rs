@@ -3,6 +3,7 @@ use yew::prelude::*;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fmt;
+use gloo::console::log;
 
 use crate::terv::{Terv, TervContext};
 use crate::osszetevok::OsszetevoPage;
@@ -25,7 +26,7 @@ use crate::socket::Socket;
 //     }
 // }
 
-enum Pages {
+pub enum Pages {
     Osszetevok,
     Recipes,
     Meals,
@@ -46,8 +47,14 @@ impl ToString for Pages {
 }
 
 pub struct App {
-    current_page: Pages,
-    terv: TervContext,
+    pub current_page: Pages,
+    pub terv: TervContext,
+    pub version: u64,
+}
+
+#[derive(Properties, PartialEq)]
+pub struct AppProps {
+    pub version: u64,
 }
 
 // Display
@@ -68,6 +75,7 @@ impl Component for App {
         Self {
             current_page: Pages::Osszetevok,
             terv: Rc::new(RefCell::new(Terv::new())),
+            version: 0,
         }
     }
 
@@ -92,19 +100,21 @@ impl Component for App {
             AppMsg::Beszer => {
                 self.current_page = Pages::Beszer;
                 true
-            },
+            }
+            _ => false,
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
         //let state = use_state(|| Terv::new());
+        let terv_context = Rc::clone(&self.terv);
+        let terv = self.terv.borrow();
+        
 
         html! {
             <div class="root">
-                <div>
-                    <Socket />
-                </div>
+                <p>{ "localhost test" }</p>
                 <div class="menu">
                     <button onclick={link.callback(|_| AppMsg::Osszetevok)}>{ "Összetevők" }</button>
                     <button onclick={link.callback(|_| AppMsg::Recipes)}>{ "Receptek" }</button>
@@ -114,22 +124,25 @@ impl Component for App {
                 </div>
                 <p>{ self.current_page.to_string() }</p>
                 <div class="container">
-                    <ContextProvider<TervContext> context={self.terv.clone()}>
+                    <ContextProvider<TervContext> context={terv_context}>
+                    <div>
+                        <Socket />
+                    </div>
                     {match self.current_page {
                         Pages::Osszetevok => {
-                            html! {<OsszetevoPage />}
+                            html! {<OsszetevoPage version={terv.version} />}
                         },
                         Pages::Recipes => {
-                            html! {<RecipePage />}
+                            html! {<RecipePage version={terv.version} />}
                         },
                         Pages::Meals => {
-                            html! {<MealPage />}
+                            html! {<MealPage version={terv.version} />}
                         },
                         Pages::ShoppingDays => {
-                            html! {<ShopPage />}
+                            html! {<ShopPage version={terv.version} />}
                         },
                         Pages::Beszer => {
-                            html! {<BeszerPage />}
+                            html! {<BeszerPage version={terv.version} />}
                         },
                         _ => {html! {<p>{ "Ismeretlen 3" }</p>}}
                     }}

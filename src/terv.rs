@@ -15,6 +15,7 @@ pub struct Terv {
     pub meals: Meals,
     pub shoppingdays: Shoppings,
     pub matrix: Matrix,
+    pub version: u64,
 }
 
 impl Terv {
@@ -25,6 +26,7 @@ impl Terv {
             meals: Meals(vec![Meal::new()]),
             shoppingdays: Shoppings(vec![Shopping::new()]),
             matrix: Matrix::new(),
+            version: 0,
         }
     }
 
@@ -165,6 +167,7 @@ fn test_calculate_matrix() {
             name: String::from("kettő"),
         }]),
         matrix: Matrix::new(),
+        version: 0,
     };
 
     terv.calculate_matrix();

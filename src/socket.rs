@@ -1,8 +1,16 @@
+use web_sys::js_sys::JSON;
 use yew::prelude::*;
 use gloo::events::EventListener;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{MessageEvent, Window};
 use web_sys::HtmlInputElement;
+use gloo::console::log;
+
+use crate::data::Data;
+use crate::meal::{self, Meal};
+use crate::data::com;
+use crate::terv::TervContext;
+
 
 pub struct Socket {
     listener: Option<EventListener>,
@@ -10,10 +18,21 @@ pub struct Socket {
     send: String,
 }
 
+// #[derive(Properties, PartialEq)]
+// pub struct SocketProps {
+//     pub on_data_received: Callback<()>,
+// }
+
 pub enum SocketMsg {
+    ReceivedData(Data),
     ReceivedMessage(String),
-    UpdateSend(String),
+    SendData,
     SendMessage,
+    RequestData,
+    TriggerRedraw,
+    
+    UpdateSend(String),
+
 }
 
 impl Component for Socket {
@@ -25,9 +44,21 @@ impl Component for Socket {
         let link = ctx.link().clone();
 
         let listener = EventListener::new(&window, "message", move |event| {
-            let message_event: &MessageEvent = event.dyn_ref().unwrap();
-            if let Some(data) = message_event.data().as_string() {
-                link.send_message(SocketMsg::ReceivedMessage(data));
+            let event: MessageEvent = event.dyn_ref::<MessageEvent>().unwrap().clone();
+            let message = event.data();
+
+            log!("sent data from rust: ", message.as_string().unwrap());
+
+            let parsed = JSON::parse(&message.as_string().unwrap()).unwrap();
+
+            if let Ok(data) = serde_wasm_bindgen::from_value::<Data>(parsed) {
+                log!("data to load: ", serde_json::to_string(&data).unwrap());
+                link.send_message(SocketMsg::ReceivedData(data));
+                return;
+            }
+
+            if let Some(msg) = message.as_string() {
+                link.send_message(SocketMsg::ReceivedMessage(msg));
             }
         });
 
@@ -39,9 +70,17 @@ impl Component for Socket {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let mut terv = terv.borrow_mut();
         match msg {
-            SocketMsg::ReceivedMessage(data) => {
-                self.received = format!("Received: {}", data);
+            SocketMsg::ReceivedMessage(message) => {
+                self.received = format!("Received: {}", message);
+                true
+            },
+            SocketMsg::ReceivedData(data) => {
+                data.convert_data(&mut terv);
+                //ctx.props().on_data_received.emit(());
+                ctx.link().send_message(SocketMsg::TriggerRedraw);
                 true
             },
             SocketMsg::SendMessage => {
@@ -50,6 +89,31 @@ impl Component for Socket {
                         .post_message(&JsValue::from(self.send.clone()), "*");
                 }
                 self.received = String::from("Waiting for message...");
+                true
+            },
+            SocketMsg::SendData => {
+                let mut data = Data::new();
+                data.convert_string(&terv, com::ALL);
+                if let Some(window) = web_sys::window() {
+                    let json_data = serde_json::to_string(&data).unwrap();
+                    log!("data from rust:", data.command, "json_data", &json_data);
+                    let _ = window.parent().unwrap().unwrap()
+                        .post_message(&JsValue::from_str(&json_data), "*");
+                }
+                false
+            },
+            SocketMsg::RequestData => {
+                let mut data = Data::new();
+                data.command = com::SEND | com::ALL;
+                if let Some(window) = web_sys::window() {
+                    let json_data = serde_json::to_string(&data).unwrap();
+                    let _ = window.parent().unwrap().unwrap()
+                        .post_message(&JsValue::from_str(&json_data), "*");
+                }
+                false
+            },
+            SocketMsg::TriggerRedraw => {
+                terv.version += 1;
                 true
             },
             SocketMsg::UpdateSend(data) => {
@@ -71,8 +135,9 @@ impl Component for Socket {
         html! {
             <div>
                 <p>{ self.received.clone() }</p>
-                <input type="text" {onchange}/>
-                <button onclick={link.callback(|_| SocketMsg::SendMessage)}>{ "Send data" }</button>
+                //<input type="text" {onchange}/>
+                <button onclick={link.callback(|_| SocketMsg::SendData)}>{ "Save data" }</button>
+                <button onclick={link.callback(|_| SocketMsg::RequestData)}>{ "Load data" }</button>
             </div>
         }
     }

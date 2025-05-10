@@ -5,6 +5,7 @@ use std::ops::{Deref, DerefMut};
 use crate::keyboard::TableFocusNavigator;
 use crate::terv::TervContext;
 use crate::shop::{Shopping, ShopDay};
+use crate::display::AppProps;
 
 
 #[derive(PartialEq, Clone, Debug)]
@@ -58,7 +59,7 @@ pub enum MealMsg {
 
 impl Component for MealPage {
     type Message = MealMsg;
-    type Properties = ();
+    type Properties = AppProps;
 
     fn create(_ctx: &Context<Self>) -> Self {
         MealPage {
@@ -157,7 +158,7 @@ impl Component for MealPage {
                                     onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></th>
                                 <th><input type="number" min="0" value={value.number.to_string()} onchange={update_number}
                                     onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></th>
-                                <th><input type="number" value={value.day.to_string()} onchange={update_day}
+                                <th><input value={value.day.to_string()} onchange={update_day}
                                     onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></th>
                                 <th><button onclick={link.callback(move |_| MealMsg::RemoveMeal(index))}>{ "Remove" }</button></th>
                                 if !terv.recipes.exist(&value.recipe) {

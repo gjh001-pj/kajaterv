@@ -4,6 +4,7 @@ use web_sys::HtmlInputElement;
 
 use crate::meal::{MealMsg, MealPage};
 use crate::terv::TervContext;
+use crate::display::AppProps;
 
 #[derive(PartialEq, Clone, Debug, Eq, Hash)]
 pub enum ShopDay {
@@ -12,6 +13,14 @@ pub enum ShopDay {
 }
 
 impl ShopDay {
+    pub fn from_str(day: &str) -> Self {
+        if let Ok(day) = day.parse() {
+            Self::Day(day)
+        } else {
+            Self::Name(day.to_string())
+        }
+    }
+
     pub fn to_string(&self) -> String {
         match self {
             ShopDay::Day(number) => number.to_string(),
@@ -101,7 +110,7 @@ pub enum ShopMsg {
 
 impl Component for ShopPage {
     type Message = ShopMsg;
-    type Properties = ();
+    type Properties = AppProps;
 
     fn create(_ctx: &Context<Self>) -> Self {
         ShopPage {}
@@ -131,7 +140,6 @@ impl Component for ShopPage {
                 terv.shoppingdays.remove(index);
                 true
             },
-
         }
     }
 
@@ -152,7 +160,7 @@ impl Component for ShopPage {
                     { for terv.shoppingdays.iter().enumerate().map(|(index, value)| {
                         let update_name = link.callback(move |e: Event| {
                             let input: HtmlInputElement = e.target_unchecked_into();
-                            ShopMsg::UpdateShop(index, input.value())
+                            ShopMsg::UpdateName(index, input.value())
                         });
 
                         let update_shop = link.callback(move |e: Event| {

@@ -7,6 +7,7 @@ use gloo::console::log;
 //use crate::osszetevok::Osszetevo;
 use crate::terv::{Terv, TervContext};
 use crate::keyboard::TableFocusNavigator;
+use crate::display::AppProps;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Ingredient {
@@ -133,7 +134,7 @@ pub enum RecipeMsg {
 
 impl Component for RecipePage {
     type Message = RecipeMsg;
-    type Properties = ();
+    type Properties = AppProps;
 
     fn create(ctx: &Context<Self>) -> Self {
         let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;

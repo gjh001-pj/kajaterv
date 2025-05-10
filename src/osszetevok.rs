@@ -5,6 +5,7 @@ use gloo::console::log;
 
 use crate::terv::TervContext;
 use crate::keyboard::TableFocusNavigator;
+use crate::display::AppProps;
 
 
 #[derive(PartialEq, Clone, Debug)]
@@ -125,7 +126,7 @@ pub enum OsszetevoMsg {
 
 impl Component for OsszetevoPage {
     type Message = OsszetevoMsg;
-    type Properties = ();
+    type Properties = AppProps;
 
     fn create(_ctx: &Context<Self>) -> Self {
         OsszetevoPage::new()
@@ -191,6 +192,7 @@ impl Component for OsszetevoPage {
         let link = ctx.link();
         let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
         let terv = terv.borrow();
+        let _ = terv.version;
 
         let all_osszetevo_name_list: Vec<&String> = terv.recipes.iter().map(|recipe| {
             recipe.ingredients.iter().map(|ingredient| {
