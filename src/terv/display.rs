@@ -6,21 +6,21 @@ use std::fmt;
 use gloo::console::log;
 
 use crate::terv::{Terv, TervContext};
-use crate::osszetevok::OsszetevoPage;
-use crate::recipe::RecipePage;
-use crate::meal::MealPage;
-use crate::shop::ShopPage;
-use crate::beszer::BeszerPage;
+use crate::osszetevok::display::OsszetevoPage;
+use crate::recipe::display::RecipePage;
+use crate::meal::display::MealPage;
+use crate::shop::display::ShopPage;
+use crate::beszer::display::BeszerPage;
 use crate::socket::Socket;
 
 // #[derive(Clone, PartialEq)]
-// pub struct AppState{
+// pub struct TervState{
 //     pub terv: Rc<UseStateHandle<Terv>>,
 // }
 
-// impl AppState {
+// impl TervState {
 //     pub fn new(state: UseStateHandle<Terv>) -> Self {
-//         AppState {
+//         TervState {
 //             terv: Rc::new(state),
 //         }
 //     }
@@ -46,20 +46,20 @@ impl ToString for Pages {
     }
 }
 
-pub struct App {
+pub struct TervPage {
     pub current_page: Pages,
     pub terv: TervContext,
     pub version: u64,
 }
 
 #[derive(Properties, PartialEq)]
-pub struct AppProps {
+pub struct TervProps {
     pub version: u64,
 }
 
 // Display
 
-pub enum AppMsg {
+pub enum TervMsg {
     Osszetevok,
     Recipes,
     Meals,
@@ -67,8 +67,8 @@ pub enum AppMsg {
     Beszer,
 }
 
-impl Component for App {
-    type Message = AppMsg;
+impl Component for TervPage {
+    type Message = TervMsg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
@@ -81,23 +81,23 @@ impl Component for App {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            AppMsg::Osszetevok => {
+            TervMsg::Osszetevok => {
                 self.current_page = Pages::Osszetevok;
                 true
             },
-            AppMsg::Recipes => {
+            TervMsg::Recipes => {
                 self.current_page = Pages::Recipes;
                 true
             },
-            AppMsg::Meals => {
+            TervMsg::Meals => {
                 self.current_page = Pages::Meals;
                 true
             },
-            AppMsg::ShoppingDays => {
+            TervMsg::ShoppingDays => {
                 self.current_page = Pages::ShoppingDays;
                 true
             },
-            AppMsg::Beszer => {
+            TervMsg::Beszer => {
                 self.current_page = Pages::Beszer;
                 true
             }
@@ -116,11 +116,11 @@ impl Component for App {
             <div class="root">
                 <p>{ "localhost test" }</p>
                 <div class="menu">
-                    <button onclick={link.callback(|_| AppMsg::Osszetevok)}>{ "Összetevők" }</button>
-                    <button onclick={link.callback(|_| AppMsg::Recipes)}>{ "Receptek" }</button>
-                    <button onclick={link.callback(|_| AppMsg::Meals)}>{ "Étkezések" }</button>
-                    <button onclick={link.callback(|_| AppMsg::ShoppingDays)}>{ "Vásárnapok" }</button>
-                    <button onclick={link.callback(|_| AppMsg::Beszer)}>{ "Beszerlisták" }</button>
+                    <button onclick={link.callback(|_| TervMsg::Osszetevok)}>{ "Összetevők" }</button>
+                    <button onclick={link.callback(|_| TervMsg::Recipes)}>{ "Receptek" }</button>
+                    <button onclick={link.callback(|_| TervMsg::Meals)}>{ "Étkezések" }</button>
+                    <button onclick={link.callback(|_| TervMsg::ShoppingDays)}>{ "Vásárnapok" }</button>
+                    <button onclick={link.callback(|_| TervMsg::Beszer)}>{ "Beszerlisták" }</button>
                 </div>
                 <p>{ self.current_page.to_string() }</p>
                 <div class="container">

@@ -2,11 +2,13 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::recipe::{Recipes, Recipe, Ingredient};
+use crate::recipe::{Recipes, Recipe, ingredient::Ingredient};
 use crate::osszetevok::{Osszetevo, Osszetevok};
 use crate::meal::{Meal, Meals};
 use crate::matrix::{Matrix, Subs, Sub};
 use crate::shop::{Shoppings, Shopping, ShopDay};
+
+pub mod display;
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Terv {

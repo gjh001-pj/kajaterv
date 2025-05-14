@@ -3,7 +3,8 @@ use gloo::console::log;
 
 use crate::recipe::Recipe;
 use crate::shop::{ShopDay, Shopping, Shoppings};
-use crate::{recipe::Ingredient, terv::Terv};
+use crate::recipe::ingredient::Ingredient;
+use crate::terv::Terv;
 use crate::osszetevok::{Osszetevo, Osszetevok};
 use crate::meal::{Meal, Meals};
 

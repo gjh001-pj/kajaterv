@@ -9,13 +9,13 @@ pub mod keyboard;
 pub mod socket;
 
 pub mod terv;
-pub mod display;
 
 
-use display::App;
+
+use terv::display::TervPage;
 
 pub fn init() {
-    yew::start_app::<App>();
+    yew::start_app::<TervPage>();
 }
 
 #[cfg(test)]
