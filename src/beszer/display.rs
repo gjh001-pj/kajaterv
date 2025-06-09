@@ -1,5 +1,6 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
+use std::collections::HashMap;
 
 use crate::terv::TervContext;
 use crate::shop::{Shopping, ShopDay, Shoppings};
@@ -50,7 +51,7 @@ impl Component for BeszerPage {
                 if let Some(error) = &self.error {
                     <p>{ format!("error: {}", error) }</p>
                 } else {
-                    <button onclick={link.callback(move |_| BeszerMsg::Calculate)}>{ "Calculate" }</button>
+                    //<button onclick={link.callback(move |_| BeszerMsg::Calculate)}>{ "Calculate" }</button>
                     <div style="display: flex">
                     { for terv.matrix.iter().enumerate().map(|(index, (day, hash))| {
                         let subs_arr: Vec<&Subs> = hash.values().collect();

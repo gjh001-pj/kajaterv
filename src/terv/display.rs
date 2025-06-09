@@ -12,6 +12,7 @@ use crate::meal::display::MealPage;
 use crate::shop::display::ShopPage;
 use crate::beszer::display::BeszerPage;
 use crate::socket::display::Socket;
+use crate::convert::display::ConvertPage;
 
 // #[derive(Clone, PartialEq)]
 // pub struct TervState{
@@ -32,17 +33,19 @@ pub enum Pages {
     Meals,
     ShoppingDays,
     Beszer,
+    Conversations,
 }
 
 impl ToString for Pages {
     fn to_string(&self) -> String {
         match self {
-            Pages::Osszetevok => String::from("Összetevők"),
-            Pages::Recipes => String::from("Receptek"),
-            Pages::Meals => String::from("Étkezések"),
-            Pages::ShoppingDays => String::from("Vásárnapok"),
-            Pages::Beszer => String::from("Beszerlisták"),
-        }
+            Pages::Osszetevok => "Összetevők",
+            Pages::Recipes => "Receptek",
+            Pages::Meals => "Étkezések",
+            Pages::ShoppingDays => "Vásárnapok",
+            Pages::Beszer => "Beszerlisták",
+            Pages::Conversations => "Átváltások"
+        }.to_string()
     }
 }
 
@@ -64,6 +67,7 @@ pub enum TervMsg {
     Meals,
     ShoppingDays,
     Beszer,
+    Conversations,
     ReDraw,
 }
 
@@ -100,6 +104,10 @@ impl Component for TervPage {
                 self.current_page = Pages::Beszer;
                 true
             },
+            TervMsg::Conversations => {
+                self.current_page = Pages::Conversations;
+                true
+            },
             TervMsg::ReDraw => {
                 true
             },
@@ -124,6 +132,7 @@ impl Component for TervPage {
                     <button onclick={link.callback(|_| TervMsg::Meals)}>{ "Étkezések" }</button>
                     <button onclick={link.callback(|_| TervMsg::ShoppingDays)}>{ "Vásárnapok" }</button>
                     <button onclick={link.callback(|_| TervMsg::Beszer)}>{ "Beszerlisták" }</button>
+                    <button onclick={link.callback(|_| TervMsg::Conversations)}>{ "Átváltások" }</button>
                 </div>
                 <p>{ self.current_page.to_string() }</p>
                 <div class="container">
@@ -146,6 +155,9 @@ impl Component for TervPage {
                         },
                         Pages::Beszer => {
                             html! {<BeszerPage version={terv.version} />}
+                        },
+                        Pages::Conversations => {
+                            html! {<ConvertPage version={terv.version} />}
                         },
                         _ => {html! {<p>{ "Ismeretlen 3" }</p>}}
                     }}

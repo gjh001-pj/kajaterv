@@ -1,3 +1,4 @@
+use gloo::net::websocket::events::CloseEvent;
 use web_sys::js_sys::JSON;
 use yew::prelude::*;
 use gloo::events::EventListener;
@@ -5,6 +6,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{MessageEvent, Window};
 use web_sys::HtmlInputElement;
 use gloo::console::log;
+use wasm_bindgen::closure::Closure;
 
 use crate::meal::{self, Meal};
 use crate::terv::display::TervMsg;
@@ -14,6 +16,7 @@ use super::data::com;
 
 pub struct Socket {
     listener: Option<EventListener>,
+    listener2: Option<EventListener>,
 }
 
 // #[derive(Properties, PartialEq)]
@@ -65,9 +68,39 @@ impl Component for Socket {
             }
         });
 
+        let closure = Closure::wrap(Box::new(move |event: Event| {
+            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
+            // You can cast to `web_sys::BeforeUnloadEvent` if needed
+            log!("beforeunload triggered");
+            panic!("beforeunload triggered");
+            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
+    
+            // Optionally cancel the event
+            // event.prevent_default(); // Not always necessary
+            // You can try to set returnValue here if you want a prompt
+            // but browsers may ignore it.
+    
+        }) as Box<dyn FnMut(_)>);
+
+        window.add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref()).unwrap();
+
+        let listener2 = EventListener::new(&window, "beforeunload", move |event| {
+            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
+            log!("closeevent triggered");
+            panic!("closeevent triggered");
+            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
+        });
+
+        ctx.link().send_message(SocketMsg::RequestData);
+
         Self {
             listener: Some(listener),
+            listener2: Some(listener2)
         }
+    }
+
+    fn destroy(&mut self, ctx: &Context<Self>) {
+        
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {

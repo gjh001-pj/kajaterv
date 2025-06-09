@@ -4,7 +4,7 @@ use std::cell::RefCell;
 
 use gloo::console::log;
 
-use crate::convert::{Conversations, Conversation};
+use crate::convert::{Conversation, Conversations, Convert};
 use crate::recipe::{Recipes, Recipe, ingredient::Ingredient};
 use crate::osszetevok::{Osszetevo, Osszetevok};
 use crate::meal::{Meal, Meals};
@@ -61,11 +61,28 @@ impl Terv {
                         if let ShopDay::Name(meal_day) = &meal.day{
                             if meal_day == name {
                                 meals.remove(index);
-                                let hash = self.matrix.get_mut(&shoppingday.day).unwrap();
-                                let recipe = self.recipes.get_recipe(&meal.recipe).unwrap();
+                                let hash = self.matrix.entry(meal.day.clone()).or_insert(HashMap::new());
+                                let recipe = match self.recipes.get_recipe(&meal.recipe) {
+                                    Some(v) => v,
+                                    None => {
+                                        return Some(format!("Nem található ilyen recept: {}, étkezés ideje: {}", meal.recipe, meal.day.to_string()));
+                                    }
+                                };
                                 for ingredient in recipe.ingredients.iter() {
+                                    let to = match self.osszetevok.by_name(&ingredient.name) {
+                                        Some(osszetevo) => &osszetevo.unit,
+                                        None => {
+                                            return Some(format!("Összetevő nem található: {}", ingredient.name));
+                                        }
+                                    };
+                                    let converted = match ingredient.convert(&to, &self.convs) {
+                                        Some(quantity) => quantity,
+                                        None => {
+                                            return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, to));
+                                        }
+                                    };
                                     let sub = Sub{
-                                        quantity: ingredient.quantity * meal.number as f64 / recipe.number as f64, 
+                                        quantity: converted * meal.number as f64 / recipe.number as f64, 
                                         recipe: recipe.name.clone(), 
                                         number: meal.number
                                     };
@@ -82,7 +99,13 @@ impl Terv {
         let mut ossz_vasar: HashMap<String, Vec<Time>> = HashMap::new();
         for meal in meals.iter_mut() {
             let day = meal.day.as_day().clone();
-            for ingredient in &self.recipes.get_recipe(&meal.recipe).unwrap().ingredients {
+            let recipe = match self.recipes.get_recipe(&meal.recipe) {
+                Some(v) => v,
+                None => {
+                    return Some(format!("Nem található ilyen recept: {}, étkezés ideje: {}", meal.recipe, meal.day.to_string()))
+                }
+            };
+            for ingredient in recipe.ingredients.iter() {
                 ossz_vasar.entry(ingredient.name.clone()).or_insert(Vec::new()).push(day);
             }
         }
@@ -99,22 +122,31 @@ impl Terv {
 
         for (ingredient, idays) in ossz_vasar.iter_mut() {
             idays.sort();
-            let time = self.osszetevok.by_name(ingredient).unwrap().time.as_day();
+            let time = match self.osszetevok.by_name(ingredient) {
+                Some(ingredient) => ingredient.time.as_day(),
+                None => {
+                    return Some(format!("Összetevő nem található: {}", ingredient));
+                }
+            };
             // let mut i = 0;
             println!("time: {:?}", time);
             loop {
                 println!("idays: {:?}", idays);
                 match idays.first() {
                     Some(iday) => {
-                        let vday = vdays.iter().filter(|&x| x <= iday).max().unwrap();
+                        let vday = match vdays.iter().filter(|&x| x <= iday).max() {
+                            Some(vday) => vday,
+                            None => {
+                                return Some(format!("Nem lehet venni {}-t, az alábbi napokra: {:?}, elállási idő: {:?}, vásárnapok: {:?}",
+                                    ingredient, idays, time, vdays));
+                            }
+                        };
                         println!("vday: {:?}", vday);
-                        let hash = vasar.get_mut(vday).unwrap();
+                        let hash = vasar.get_mut(vday).expect("Hiba a kódban, korábban az összes vday-t belepakoltuk vasar-ba.");
                         hash.insert(ingredient.clone(), true);
-                        if *idays.iter().min().unwrap() >= *vday + *time {
-                            return Some(format!(
-r#"nem lehet megvenni minden összetevőt!
-összetevő ideje: {iday:?}, előtte lévő vásárlás: {vday:?}, elállási idő: {time:?}"#
-));
+                        if *idays.iter().min().expect("A match-nál ellenőriztük, hogy van a listának első eleme.") >= *vday + *time {
+                            return Some(format!("nem lehet megvenni {} összetevőt ekkorra: {:?}, előtte lévő vásárlás: {:?}, elállási idő: {:?}",
+                                ingredient, iday, vday, time));
                         }
                         idays.retain(|&jday| jday >= *vday + *time);
                     },
@@ -155,19 +187,35 @@ r#"nem lehet megvenni minden összetevőt!
         for meal in meals.iter() {
             let day = meal.day.as_day().clone();
             println!("meal.recipe: {}, recipe: {}", meal.recipe, self.recipes[0].name);
-            let mut recipe = self.recipes.get_recipe(&meal.recipe).unwrap();
+            let recipe = match self.recipes.get_recipe(&meal.recipe) {
+                Some(recipe) => recipe,
+                None => {
+                    return Some(format!("Nem található ilyen recept: {}, étkezés ideje: {}", meal.recipe, meal.day.to_string()))
+                }
+            };
             for ingredient in recipe.ingredients.iter() {
                 println!("vasar: {:?}, name: {}, res: {:?}", vasar, ingredient.name, get_shopping_days(&vasar, &ingredient.name));
-                let vday = get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max().unwrap().clone();
-                let hash = match self.matrix.get_mut(&ShopDay::Day(vday)) {
-                    Some(h) => h,
+                let vday = match get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max() {
+                    Some(vday) => vday.clone(),
                     None => {
-                        self.matrix.insert(ShopDay::Day(vday), HashMap::new());
-                        self.matrix.get_mut(&ShopDay::Day(vday)).unwrap()
+                        return Some(format!("Hiba a kódban! Elméletileg van vásárnap"));
+                    }
+                };
+                let hash = self.matrix.entry(ShopDay::Day(vday)).or_insert(HashMap::new());
+                let to = match self.osszetevok.by_name(&ingredient.name) {
+                    Some(osszetevo) => &osszetevo.unit,
+                    None => {
+                        return Some(format!("Összetevő nem található: {}", ingredient.name));
+                    }
+                };
+                let converted = match ingredient.convert(&to, &self.convs) {
+                    Some(quantity) => quantity,
+                    None => {
+                        return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, to));
                     }
                 };
                 let sub = Sub{
-                    quantity: ingredient.quantity * meal.number as f64 / recipe.number as f64, 
+                    quantity: converted * meal.number as f64 / recipe.number as f64, 
                     recipe: meal.recipe.clone(), 
                     number: meal.number
                 };

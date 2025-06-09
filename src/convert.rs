@@ -13,6 +13,16 @@ pub struct Conversation {
     pub factor: f64,
 }
 
+impl Conversation {
+    pub fn new() -> Self {
+        Self {
+            from: String::new(),
+            to: String::new(),
+            factor: 0.0,
+        }
+    }
+}
+
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Conversations(pub Vec<Conversation>);
 
@@ -34,6 +44,9 @@ pub trait Convert {
 }
 
 pub fn get_factor(from: &str, to: &str, convs: &Conversations) -> Option<f64> {
+    if from == to {
+        return Some(1.0);
+    }
     for conv1 in convs.iter() {
         let (mid, factor1): (&str, f64) = if from == conv1.from {
             (&conv1.to, conv1.factor)
