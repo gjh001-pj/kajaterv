@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
-use crate::keyboard::TableFocusNavigator;
+use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::TervContext;
 use crate::terv::display::TervProps;
 
@@ -28,10 +28,20 @@ impl Component for MealPage {
     type Message = MealMsg;
     type Properties = TervProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
+
         MealPage {
-            focus_nav: TableFocusNavigator::new(1, 3),
+            focus_nav: TableFocusNavigator::new(terv.meals.len(), 3),
         }
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
+        self.focus_nav.build(terv.meals.len(), 3);
+        true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -54,7 +64,7 @@ impl Component for MealPage {
                 true
             },
             MealMsg::UpdateDay(index, day) => {
-                if let Ok(day) = day.parse() {
+                if let Ok(day) = Time::from_str(&day) {
                     terv.meals.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
                     terv.meals.get_mut(index).unwrap().day = ShopDay::Name(day);
@@ -121,15 +131,15 @@ impl Component for MealPage {
 
                         html! {
                             <tr>
-                                <th><input type="text" list="recipe_list" value={value.recipe.clone()} onchange={update_recipe}
-                                    onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></th>
-                                <th><input type="number" min="0" value={value.number.to_string()} onchange={update_number}
-                                    onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></th>
-                                <th><input value={value.day.to_string()} onchange={update_day}
-                                    onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></th>
-                                <th><button onclick={link.callback(move |_| MealMsg::RemoveMeal(index))}>{ "Remove" }</button></th>
+                                <td><input type="text" list="recipe_list" value={value.recipe.clone()} onchange={update_recipe}
+                                    onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></td>
+                                <td><input type="number" min="0" value={value.number.to_string()} onchange={update_number}
+                                    onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></td>
+                                <td><input value={value.day.to_string()} onchange={update_day}
+                                    onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></td>
+                                <td><button onclick={link.callback(move |_| MealMsg::RemoveMeal(index))}>{ "Remove" }</button></td>
                                 if !terv.recipes.exist(&value.recipe) {
-                                    <th>{ "A recept nem található" }</th>
+                                    <td class="err">{ "A recept nem található" }</td>
                                 }
                             </tr>
                         }

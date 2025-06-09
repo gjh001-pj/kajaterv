@@ -1,16 +1,20 @@
 use std::ops::{Deref, DerefMut};
+use crate::backend::time::Time;
 
 pub mod display;
 
 #[derive(PartialEq, Clone, Debug, Eq, Hash)]
 pub enum ShopDay {
-    Day(i32),
+    Day(Time),
     Name(String),
 }
 
 impl ShopDay {
+    pub fn new() -> Self {
+        Self::Name(String::from(""))
+    }
     pub fn from_str(day: &str) -> Self {
-        if let Ok(day) = day.parse() {
+        if let Ok(day) = Time::from_str(day) {
             Self::Day(day)
         } else {
             Self::Name(day.to_string())
@@ -24,7 +28,7 @@ impl ShopDay {
         }
     }
 
-    pub fn as_day(&self) -> &i32 {
+    pub fn as_day(&self) -> &Time {
         if let ShopDay::Day(day) = self {
             return day;
         } else {
@@ -32,7 +36,7 @@ impl ShopDay {
         }
     }
 
-    pub fn as_mut_day(&mut self) -> &mut i32 {
+    pub fn as_mut_day(&mut self) -> &mut Time {
         if let ShopDay::Day(day) = self {
             return day;
         } else {
@@ -78,6 +82,17 @@ pub struct Shoppings(pub Vec<Shopping>);
 impl Shoppings {
     pub fn new() -> Self {
         Shoppings (Vec::new())
+    }
+}
+
+impl Shoppings {
+    pub fn get_by_day(&self, day: &ShopDay) -> Option<&Shopping> {
+        for shopping in self.iter() {
+            if shopping.day == *day {
+                return Some(shopping);
+            }
+        }
+        None
     }
 }
 

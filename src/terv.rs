@@ -2,11 +2,15 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+use gloo::console::log;
+
+use crate::convert::{Conversations, Conversation};
 use crate::recipe::{Recipes, Recipe, ingredient::Ingredient};
 use crate::osszetevok::{Osszetevo, Osszetevok};
 use crate::meal::{Meal, Meals};
-use crate::matrix::{Matrix, Subs, Sub};
+use crate::backend::matrix::{Matrix, Subs, Sub};
 use crate::shop::{Shoppings, Shopping, ShopDay};
+use crate::backend::time::Time;
 
 pub mod display;
 
@@ -17,6 +21,8 @@ pub struct Terv {
     pub meals: Meals,
     pub shoppingdays: Shoppings,
     pub matrix: Matrix,
+    pub convs: Conversations,
+    pub error: Option<String>,
     pub version: u64,
 }
 
@@ -28,16 +34,24 @@ impl Terv {
             meals: Meals(vec![Meal::new()]),
             shoppingdays: Shoppings(vec![Shopping::new()]),
             matrix: Matrix::new(),
+            convs: Conversations(vec![
+                Conversation{ from: "g".to_string(), to: "kg".to_string(), factor: 0.001},
+                Conversation{ from: "dkg".to_string(), to: "kg".to_string(), factor: 0.01},
+                Conversation{ from: "ml".to_string(), to: "l".to_string(), factor: 0.001},
+                Conversation{ from: "dl".to_string(), to: "l".to_string(), factor: 0.1},
+                Conversation{ from: "cl".to_string(), to: "l".to_string(), factor: 0.01},
+            ]),
+            error: None,
             version: 0,
         }
     }
 
-    pub fn calculate_matrix(&mut self) {
+    pub fn calculate_matrix(&mut self) -> Option<String> {
         let mut meals = self.meals.clone();
 
         self.matrix.clear();
 
-        let mut vdays: Vec<i32> = Vec::new();
+        let mut vdays: Vec<Time> = Vec::new();
 
         for shoppingday in self.shoppingdays.iter() {
             match &shoppingday.day {
@@ -51,7 +65,7 @@ impl Terv {
                                 let recipe = self.recipes.get_recipe(&meal.recipe).unwrap();
                                 for ingredient in recipe.ingredients.iter() {
                                     let sub = Sub{
-                                        quantity: ingredient.quantity, 
+                                        quantity: ingredient.quantity * meal.number as f64 / recipe.number as f64, 
                                         recipe: recipe.name.clone(), 
                                         number: meal.number
                                     };
@@ -64,7 +78,8 @@ impl Terv {
         }
         vdays.sort();
 
-        let mut ossz_vasar: HashMap<String, Vec<i32>> = HashMap::new();
+
+        let mut ossz_vasar: HashMap<String, Vec<Time>> = HashMap::new();
         for meal in meals.iter_mut() {
             let day = meal.day.as_day().clone();
             for ingredient in &self.recipes.get_recipe(&meal.recipe).unwrap().ingredients {
@@ -72,42 +87,76 @@ impl Terv {
             }
         }
 
-        let mut vasar: HashMap<i32, HashMap<String, bool>> = HashMap::new();
+
+        let mut vasar: HashMap<Time, HashMap<String, bool>> = HashMap::new();
         for day in vdays.iter() {
             vasar.insert(*day, HashMap::new());
         }
+
 
         println!("ossz_vasar: {:?}", ossz_vasar);
         println!("vdays: {:?}", vdays);
 
         for (ingredient, idays) in ossz_vasar.iter_mut() {
-            println!("ing_name: {}, vdays: {:?}", ingredient, vdays);
             idays.sort();
-            let time = self.osszetevok.by_name(ingredient).unwrap().time as i32;
-            let terjedelem = idays.iter().max().unwrap() - idays.iter().min().unwrap() + 1;
-            let count = (terjedelem as f32 / time as f32).ceil() as i32;
-            println!("time: {}, terj: {}, count: {}", time, terjedelem, count);
-            for _ in 0..count {
+            let time = self.osszetevok.by_name(ingredient).unwrap().time.as_day();
+            // let mut i = 0;
+            println!("time: {:?}", time);
+            loop {
+                println!("idays: {:?}", idays);
                 match idays.first() {
                     Some(iday) => {
-                        let iday = *iday;
-                        println!("vasar: {:?}, vdays: {:?}, iday: {}, idays: {:?}", vasar, vdays, iday, idays);
-                        let vday = vdays.iter().filter(|&x| *x <= iday).max().unwrap();
-                        let hash = vasar.get_mut(&vday).unwrap();
+                        let vday = vdays.iter().filter(|&x| x <= iday).max().unwrap();
+                        println!("vday: {:?}", vday);
+                        let hash = vasar.get_mut(vday).unwrap();
                         hash.insert(ingredient.clone(), true);
-                        idays.retain(|jday| *jday >= vday + time)
+                        if *idays.iter().min().unwrap() >= *vday + *time {
+                            return Some(format!(
+r#"nem lehet megvenni minden összetevőt!
+összetevő ideje: {iday:?}, előtte lévő vásárlás: {vday:?}, elállási idő: {time:?}"#
+));
+                        }
+                        idays.retain(|&jday| jday >= *vday + *time);
                     },
                     None => break,
                 }
+                // if i > 10 {
+                //     break;
+                // } else {
+                //     i += 1;
+                // }
+
             }
+            
+            // println!("ing_name: {}, vdays: {:?}", ingredient, vdays);
+            // idays.sort();
+            // let time = self.osszetevok.by_name(ingredient).unwrap().time as i32;
+            // let terjedelem = idays.iter().max().unwrap() - idays.iter().min().unwrap() + 1;
+            // let count = (terjedelem as f32 / time as f32).ceil() as i32;
+            // println!("time: {}, terj: {}, count: {}", time, terjedelem, count);
+            // for _ in 0..count {
+            //     match idays.first() {
+            //         Some(iday) => {
+            //             let iday = *iday;
+            //             println!("vasar: {:?}, vdays: {:?}, iday: {}, idays: {:?}", vasar, vdays, iday, idays);
+            //             let vday = vdays.iter().filter(|&x| *x <= iday).max().unwrap();
+            //             let hash = vasar.get_mut(&vday).unwrap();
+            //             hash.insert(ingredient.clone(), true);
+            //             idays.retain(|jday| *jday >= vday + time)
+            //         },
+            //         None => break,
+            //     }
+            // }
         }
 
-        println!("{:?}", vasar.get(&1));
+
+        //println!("{:?}", vasar.get(&1));
 
         for meal in meals.iter() {
             let day = meal.day.as_day().clone();
             println!("meal.recipe: {}, recipe: {}", meal.recipe, self.recipes[0].name);
-            for ingredient in self.recipes.get_recipe(&meal.recipe).unwrap().ingredients.iter() {
+            let mut recipe = self.recipes.get_recipe(&meal.recipe).unwrap();
+            for ingredient in recipe.ingredients.iter() {
                 println!("vasar: {:?}, name: {}, res: {:?}", vasar, ingredient.name, get_shopping_days(&vasar, &ingredient.name));
                 let vday = get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max().unwrap().clone();
                 let hash = match self.matrix.get_mut(&ShopDay::Day(vday)) {
@@ -118,19 +167,21 @@ impl Terv {
                     }
                 };
                 let sub = Sub{
-                    quantity: ingredient.quantity, 
+                    quantity: ingredient.quantity * meal.number as f64 / recipe.number as f64, 
                     recipe: meal.recipe.clone(), 
                     number: meal.number
                 };
                 hash.entry(ingredient.name.clone()).or_insert(Subs::new()).push(sub);
             }
         }
+
+        None
     }
 }
 
 pub type TervContext = Rc<RefCell<Terv>>;
 
-fn get_shopping_days(vasar: &HashMap<i32, HashMap<String, bool>>, ingredient: &str) -> Vec<i32> {
+fn get_shopping_days(vasar: &HashMap<Time, HashMap<String, bool>>, ingredient: &str) -> Vec<Time> {
     let mut res = Vec::new();
     for (day, hash) in vasar.iter() {
         if hash.contains_key(ingredient) {
@@ -144,35 +195,80 @@ fn get_shopping_days(vasar: &HashMap<i32, HashMap<String, bool>>, ingredient: &s
 fn test_calculate_matrix() {
     let a = vec![1, 2, 3, 4];
     let mut terv = Terv {
-        osszetevok: Osszetevok (vec![Osszetevo {
-            name: String::from("aaa"), 
-            unit: String::from("m"), 
-            time: 2, 
-            unit_price: 100.0
-        }]),
+        osszetevok: Osszetevok (vec![
+            Osszetevo {
+                name: String::from("aaa"), 
+                unit: String::from("m"), 
+                time: ShopDay::Day(Time::from_str("1").unwrap()), 
+                unit_price: 100.0
+            },
+            Osszetevo {
+                name: String::from("bbb"), 
+                unit: String::from("m"), 
+                time: ShopDay::Day(Time::from_str("2").unwrap()), 
+                unit_price: 200.0
+            },
+            Osszetevo {
+                name: String::from("ccc"), 
+                unit: String::from("m"), 
+                time: ShopDay::Day(Time::from_str("3").unwrap()), 
+                unit_price: 300.0
+            }
+        ]),
         recipes: Recipes (vec![Recipe {
             name: String::from("alma"),
             number: 10,
-            ingredients: vec![Ingredient {
-                name: String::from("aaa"),
-                quantity: 1.0,
-                unit: String::from("m"),
-            }],
+            ingredients: vec![
+                Ingredient {
+                    name: String::from("aaa"),
+                    quantity: 1.0,
+                    unit: String::from("m"),
+                },
+                Ingredient {
+                    name: String::from("bbb"),
+                    quantity: 1.0,
+                    unit: String::from("m"),
+                }
+            ],
         }]),
-        meals: Meals(vec![Meal {
+        meals: Meals(vec![
+            Meal {
             recipe: String::from("alma"),
-            number: 10,
-            day: ShopDay::Day(2)
-        }]),
-        shoppingdays: Shoppings(vec![Shopping {
-            day: ShopDay::Day(2),
-            name: String::from("kettő"),
-        }]),
+            number: 20,
+            day: ShopDay::Day(Time::from_str("1").unwrap())
+            },
+            Meal {
+                recipe: String::from("alma"),
+                number: 10,
+                day: ShopDay::Day(Time::from_str("2").unwrap())
+            }
+        ]),
+        shoppingdays: Shoppings(vec![
+            Shopping {
+                day: ShopDay::Day(Time::from_str("1").unwrap()),
+                name: String::from("egy"),
+            },
+            // Shopping {
+            //     day: ShopDay::Day(Time::from_str("2").unwrap()),
+            //     name: String::from("kettő"),
+            // }
+        ]),
         matrix: Matrix::new(),
+        convs: Conversations(vec![
+            Conversation{ from: "g".to_string(), to: "kg".to_string(), factor: 0.001},
+            Conversation{ from: "dkg".to_string(), to: "kg".to_string(), factor: 0.01},
+            Conversation{ from: "ml".to_string(), to: "l".to_string(), factor: 0.001},
+            Conversation{ from: "dl".to_string(), to: "l".to_string(), factor: 0.1},
+            Conversation{ from: "cl".to_string(), to: "l".to_string(), factor: 0.01},
+        ]),
+        error: None,
         version: 0,
     };
 
-    terv.calculate_matrix();
+    if let Some(err) = terv.calculate_matrix() {
+        panic!("{}", err);
+    }
 
     print!("matrix: {:#?}", terv.matrix);
+    panic!("siker");
 }

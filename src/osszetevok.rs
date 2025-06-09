@@ -1,4 +1,5 @@
 use std::ops::{Deref, DerefMut};
+use crate::shop::ShopDay;
 
 
 pub mod display;
@@ -7,7 +8,7 @@ pub mod display;
 pub struct Osszetevo {
     pub name: String,
     pub unit: String,
-    pub time: u32,
+    pub time: ShopDay,
     pub unit_price: f64,
 }
 
@@ -17,7 +18,7 @@ impl Osszetevo {
         Osszetevo {
             name: String::new(),
             unit: String::new(),
-            time: 0,
+            time: ShopDay::Name(String::new()),
             unit_price: 0.0,
         }
     }

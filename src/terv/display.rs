@@ -11,7 +11,7 @@ use crate::recipe::display::RecipePage;
 use crate::meal::display::MealPage;
 use crate::shop::display::ShopPage;
 use crate::beszer::display::BeszerPage;
-use crate::socket::Socket;
+use crate::socket::display::Socket;
 
 // #[derive(Clone, PartialEq)]
 // pub struct TervState{
@@ -49,7 +49,6 @@ impl ToString for Pages {
 pub struct TervPage {
     pub current_page: Pages,
     pub terv: TervContext,
-    pub version: u64,
 }
 
 #[derive(Properties, PartialEq)]
@@ -65,6 +64,7 @@ pub enum TervMsg {
     Meals,
     ShoppingDays,
     Beszer,
+    ReDraw,
 }
 
 impl Component for TervPage {
@@ -75,7 +75,6 @@ impl Component for TervPage {
         Self {
             current_page: Pages::Osszetevok,
             terv: Rc::new(RefCell::new(Terv::new())),
-            version: 0,
         }
     }
 
@@ -100,7 +99,10 @@ impl Component for TervPage {
             TervMsg::Beszer => {
                 self.current_page = Pages::Beszer;
                 true
-            }
+            },
+            TervMsg::ReDraw => {
+                true
+            },
             _ => false,
         }
     }
@@ -111,6 +113,7 @@ impl Component for TervPage {
         let terv_context = Rc::clone(&self.terv);
         let terv = self.terv.borrow();
         
+        let redraw_callback = link.callback(|msg: TervMsg| msg); 
 
         html! {
             <div class="root">
@@ -126,7 +129,7 @@ impl Component for TervPage {
                 <div class="container">
                     <ContextProvider<TervContext> context={terv_context}>
                     <div>
-                        <Socket />
+                        <Socket redraw={redraw_callback} />
                     </div>
                     {match self.current_page {
                         Pages::Osszetevok => {

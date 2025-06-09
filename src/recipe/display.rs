@@ -4,8 +4,9 @@ use web_sys::HtmlInputElement;
 use gloo::console::log;
 
 use crate::terv::{Terv, TervContext};
-use crate::keyboard::TableFocusNavigator;
+use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::display::TervProps;
+use crate::convert::Convert;
 
 use super::*;
 
@@ -64,6 +65,16 @@ impl Component for RecipePage {
             current_recipe: Some(0),
             focus_nav,
         }
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
+
+        if let Some(recipe) = terv.recipes.get(0) {
+            self.focus_nav.build(recipe.ingredients.len(), 3);
+        }
+        true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -230,16 +241,26 @@ impl Component for RecipePage {
                                     let onclick = link.callback(move |_| {
                                         RecipeMsg::MouseClick
                                     });
+
+                                    let osszetevo = terv.osszetevok.by_name(&value.name);
         
                                     html! {
                                         <tr>
-                                            <th><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name}
-                                                onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></th>
-                                            <th><input type="number" step="any" value={value.quantity.to_string()} onchange={update_quantity}
-                                                onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></th>
-                                            <th><input type="text" value={value.unit.clone()} onchange={update_unit}
-                                                onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></th>
-                                            <th><button onclick={link.callback(move |_| RecipeMsg::RemoveIngredient(index))}>{ "Remove" }</button></th>
+                                            <td><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name}
+                                                onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></td>
+                                            <td><input type="number" step="any" value={value.quantity.to_string()} onchange={update_quantity}
+                                                onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></td>
+                                            <td><input type="text" value={value.unit.clone()} onchange={update_unit}
+                                                onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></td>
+                                            <td><button onclick={link.callback(move |_| RecipeMsg::RemoveIngredient(index))}>{ "Remove" }</button></td>
+                                            {match osszetevo {
+                                                None => html!{<td class="err">{ "Az összetevő nem található" }</td>},
+                                                Some(osszetevo) => {
+                                                    if let None = value.convert(&osszetevo.unit, &terv.convs) {
+                                                        html!{<td class="err">{ format!("{} nem váltható át {}-ra/re", value.unit, osszetevo.unit) }</td>}
+                                                    } else {html!{}}
+                                                },
+                                            } }
                                         </tr>
                                     }
                                 })}

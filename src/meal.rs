@@ -2,7 +2,7 @@
 use std::ops::{Deref, DerefMut};
 
 
-use crate::shop::{Shopping, ShopDay};
+use crate::{backend::time::Time, shop::{ShopDay, Shopping}};
 
 
 pub mod display;
@@ -20,7 +20,7 @@ impl Meal {
         Meal {
             recipe: String::new(),
             number: 0,
-            day: ShopDay::Day(0),
+            day: ShopDay::Day(Time::new()),
         }
     }
 }

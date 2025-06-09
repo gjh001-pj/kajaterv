@@ -3,8 +3,9 @@ use web_sys::HtmlInputElement;
 use gloo::console::log;
 
 use crate::terv::TervContext;
-use crate::keyboard::TableFocusNavigator;
+use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::display::TervProps;
+use crate::backend::time::Time;
 
 use super::*;
 
@@ -12,14 +13,6 @@ use super::*;
 
 pub struct OsszetevoPage {
     pub focus_nav: TableFocusNavigator,
-}
-
-impl OsszetevoPage {
-    pub fn new() -> Self {
-        OsszetevoPage {
-            focus_nav: TableFocusNavigator::new(1, 4),
-        }
-    }
 }
 
 // Display
@@ -39,8 +32,20 @@ impl Component for OsszetevoPage {
     type Message = OsszetevoMsg;
     type Properties = TervProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
-        OsszetevoPage::new()
+    fn create(ctx: &Context<Self>) -> Self {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
+
+        Self {
+            focus_nav: TableFocusNavigator::new(terv.osszetevok.len(), 4),
+        }
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
+        self.focus_nav.build(terv.osszetevok.len(), 4);
+        true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -73,8 +78,8 @@ impl Component for OsszetevoPage {
             },
             OsszetevoMsg::UpdateTime(index, time) => {
                 if let Some(imput) = terv.osszetevok.get_mut(index) {
-                    if let Ok(time) = time.parse() {
-                        imput.time = time;
+                    if let Ok(time) = Time::from_str(&time) {
+                        imput.time = ShopDay::Day(time);
                     }
                 }
                 true
@@ -103,7 +108,6 @@ impl Component for OsszetevoPage {
         let link = ctx.link();
         let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
         let terv = terv.borrow();
-        let _ = terv.version;
 
         let all_osszetevo_name_list: Vec<&String> = terv.recipes.iter().map(|recipe| {
             recipe.ingredients.iter().map(|ingredient| {
@@ -160,16 +164,15 @@ impl Component for OsszetevoPage {
 
                             html! {
                                 <tr>
-                                    <th><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name} 
-                                        onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></th>
-                                    <th><input type="text" value={value.unit.clone()} onchange={update_unit} 
-                                        onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></th>
-                                    <th><input type="number" min="0"
-                                        value={value.time.to_string()} onchange={update_time} 
-                                        onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></th>
-                                    <th><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} 
-                                        onkeydown={onkeydown(3)} ref={self.focus_nav.refs[index][3].clone()} onclick={onclick.clone()} /></th>
-                                    <th><button onclick={link.callback(move |_| OsszetevoMsg::Remove(index))}>{ "Remove" }</button></th>
+                                    <td><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name} 
+                                        onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></td>
+                                    <td><input type="text" value={value.unit.clone()} onchange={update_unit} 
+                                        onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></td>
+                                    <td><input value={value.time.to_string()} onchange={update_time} 
+                                        onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></td>
+                                    <td><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} 
+                                        onkeydown={onkeydown(3)} ref={self.focus_nav.refs[index][3].clone()} onclick={onclick.clone()} /></td>
+                                    <td><button onclick={link.callback(move |_| OsszetevoMsg::Remove(index))}>{ "Remove" }</button></td>
                                 </tr>
                             }
                         })}

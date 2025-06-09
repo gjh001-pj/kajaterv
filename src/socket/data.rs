@@ -1,7 +1,8 @@
 use serde::{Serialize, Deserialize};
 use gloo::console::log;
 
-use crate::recipe::Recipe;
+use crate::backend::time::Time;
+use crate::recipe::{Recipe, Recipes};
 use crate::shop::{ShopDay, Shopping, Shoppings};
 use crate::recipe::ingredient::Ingredient;
 use crate::terv::Terv;
@@ -67,7 +68,7 @@ impl Data {
 
     pub fn convert_string_ossz(&mut self, terv: &Terv) {
         self.osszetevok = terv.osszetevok.iter().map(|ossz| {
-            format!("{}\t{}\t{}\t{}", ossz.name, ossz.unit, ossz.time, ossz.unit_price)
+            format!("{}\t{}\t{}\t{}", ossz.name, ossz.unit, ossz.time.to_string(), ossz.unit_price)
         }).collect::<Vec<String>>().join("\n");
     }
     pub fn convert_string_rec(&mut self, terv: &Terv) {
@@ -123,15 +124,18 @@ impl Data {
 
     pub fn convert_data_ossz(&self, terv: &mut Terv) {
         if self.osszetevok == "" { return; }
-        log!("osszetevok: ", &self.osszetevok);
+        //log!("osszetevok: ", &self.osszetevok);
 
         terv.osszetevok.0 = self.osszetevok.split("\n").map(|row| {
             let cells: Vec<&str> = row.split("\t").collect();
-            log!(format!("cells: {:?}", cells));
+            //log!(format!("cells: {:?}", cells));
             Osszetevo {
                 name: cells[0].to_string(),
                 unit: cells[1].to_string(),
-                time: cells[2].parse().unwrap(),
+                time: match Time::from_str(&cells[2]) {
+                    Ok(t) => ShopDay::Day(t),
+                    Err(_) => ShopDay::Name(cells[2].to_string()),
+                },
                 unit_price: cells[3].parse().unwrap(),
             }
         }).collect();
@@ -159,6 +163,7 @@ impl Data {
                 }
             }
         }
+        terv.recipes = Recipes(recipes);
     }
     pub fn convert_data_meal(&self, terv: &mut Terv) {
         if self.meals == "" { return; }
@@ -196,5 +201,5 @@ pub fn copy_beszerlista(){}
 
 #[test]
 fn test3() {
-    panic!("n: {:?}", String::from("").split("\n").collect::<Vec<&str>>());
+    //panic!("n: {:?}", String::from("").split("\n").collect::<Vec<&str>>());
 }

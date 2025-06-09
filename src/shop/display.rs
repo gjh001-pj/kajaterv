@@ -5,11 +5,14 @@ use web_sys::HtmlInputElement;
 //use crate::meal::display::{MealMsg, MealPage};
 use crate::terv::TervContext;
 use crate::terv::display::TervProps;
+use crate::backend::keyboard::TableFocusNavigator;
 
 use super::*;
 
 
-pub struct ShopPage {}
+pub struct ShopPage {
+    pub focus_nav: TableFocusNavigator,
+}
 
 pub enum ShopMsg {
     Add,
@@ -22,8 +25,19 @@ impl Component for ShopPage {
     type Message = ShopMsg;
     type Properties = TervProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
-        ShopPage {}
+    fn create(ctx: &Context<Self>) -> Self {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
+        ShopPage {
+            focus_nav: TableFocusNavigator::new(terv.shoppingdays.len(), 2),
+        }
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let terv = terv.borrow();
+        self.focus_nav.build(terv.shoppingdays.len(), 2);
+        true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -39,7 +53,7 @@ impl Component for ShopPage {
                 true
             },
             ShopMsg::UpdateShop(index, dayname) => {
-                if let Ok(day) = dayname.parse() {
+                if let Ok(day) = Time::from_str(&dayname) {
                     terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
                     terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Name(dayname);
@@ -80,9 +94,9 @@ impl Component for ShopPage {
 
                         html! {
                             <tr>
-                                <th><input type="text" value={value.name.clone()} onchange={update_name}/></th>
-                                <th><input type="text" value={value.day.to_string()} onchange={update_shop}/></th>
-                                <th><button onclick={link.callback(move |_| ShopMsg::Remove(index))}>{ "Remove" }</button></th>
+                                <td><input type="text" value={value.name.clone()} onchange={update_name}/></td>
+                                <td><input type="text" value={value.day.to_string()} onchange={update_shop}/></td>
+                                <td><button onclick={link.callback(move |_| ShopMsg::Remove(index))}>{ "Remove" }</button></td>
                             </tr>
                         }
                     })}
