@@ -1,5 +1,5 @@
 use std::ops::{Deref, DerefMut, Add, Sub};
-
+use std::fmt::{self, Display};
 
 
 const MIN: i32 = 1;
@@ -46,12 +46,21 @@ impl Time {
     }
 }
 
-impl ToString for Time {
-    fn to_string(&self) -> String {
+// impl ToString for Time {
+//     fn to_string(&self) -> String {
+//         let day = self.mins / DAY;
+//         let hour = (self.mins - day * DAY) / HOUR;
+//         let min = (self.mins - day * DAY - hour * HOUR) / MIN;
+//         format!("{}. {}:{}", day, hour, min)
+//     }
+// }
+
+impl Display for Time {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let day = self.mins / DAY;
         let hour = (self.mins - day * DAY) / HOUR;
         let min = (self.mins - day * DAY - hour * HOUR) / MIN;
-        format!("{}. {}:{}", day, hour, min)
+        write!(f, "{}. {}:{:02}", day, hour, min)
     }
 }
 

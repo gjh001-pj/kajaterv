@@ -115,6 +115,7 @@ impl Component for Socket {
             },
             SocketMsg::SendData => {
                 let mut data = Data::new();
+                terv.make_beszerek();
                 data.convert_string(&terv, com::ALL);
                 if let Some(window) = web_sys::window() {
                     let json_data = serde_json::to_string(&data).unwrap();

@@ -4,13 +4,15 @@ use std::cell::RefCell;
 
 use gloo::console::log;
 
+use crate::beszer::{BeszerLista, BeszerListak, Item};
 use crate::convert::{Conversation, Conversations, Convert};
 use crate::recipe::{Recipes, Recipe, ingredient::Ingredient};
-use crate::osszetevok::{Osszetevo, Osszetevok};
+use crate::osszetevok::{self, Osszetevo, Osszetevok};
 use crate::meal::{Meal, Meals};
 use crate::backend::matrix::{Matrix, Subs, Sub};
 use crate::shop::{Shoppings, Shopping, ShopDay};
 use crate::backend::time::Time;
+use crate::beszer::display::{format_quantities, format_prices};
 
 pub mod display;
 
@@ -21,6 +23,7 @@ pub struct Terv {
     pub meals: Meals,
     pub shoppingdays: Shoppings,
     pub matrix: Matrix,
+    pub beszerek: BeszerListak,
     pub convs: Conversations,
     pub error: Option<String>,
     pub version: u64,
@@ -34,6 +37,7 @@ impl Terv {
             meals: Meals(vec![Meal::new()]),
             shoppingdays: Shoppings(vec![Shopping::new()]),
             matrix: Matrix::new(),
+            beszerek: BeszerListak(Vec::new()),
             convs: Conversations(vec![
                 Conversation{ from: "g".to_string(), to: "kg".to_string(), factor: 0.001},
                 Conversation{ from: "dkg".to_string(), to: "kg".to_string(), factor: 0.01},
@@ -44,6 +48,63 @@ impl Terv {
             error: None,
             version: 0,
         }
+    }
+
+    pub fn make_beszerek(&mut self) -> Option<String> {
+        if let Some(err) = self.calculate_matrix() {
+            return Some(err);
+        };
+        if let Some(err) = self.matrix_to_beszerek() {
+            return Some(err);
+        }
+        None
+    }
+
+    pub fn matrix_to_beszerek(&mut self) -> Option<String> {
+        for (shopday, raw_items) in self.matrix.iter() {
+            let mut recipes: Vec<&String> = raw_items.values().map(|subs| {
+                subs.iter().map(|sub| {
+                    &sub.recipe
+                })
+            }).flatten().collect();
+            recipes.dedup();
+
+            let format_recipes = recipes.iter().enumerate().map(|(index, recipe)| {
+                format!("{}. {}", index + 1, recipe)
+            }).collect::<Vec<String>>().join(", ");
+
+            let items: Vec<Item> = raw_items.iter().map(|(osszetevo_name, subs)| {
+                let osszetevo = self.osszetevok.by_name(osszetevo_name).unwrap();
+                
+                let name = format!("{} ({:.2})", osszetevo_name, osszetevo.unit_price);
+                
+                let recipes = subs.iter().map(|sub| {
+                    format!("{} ({})", recipes.iter().position(|&recipe| *recipe == sub.recipe).unwrap() + 1, sub.number)
+                }).collect::<Vec<String>>().join(", ");
+                
+                let quantities = format_quantities(subs, &osszetevo.unit);
+
+                let prices = format_prices(subs);
+
+                Item {
+                    name,
+                    recipes,
+                    quantities,
+                    prices,
+                }
+            }).collect();
+
+            self.beszerek.push(BeszerLista {
+                name: self.shoppingdays.get_by_day(shopday).expect("innen eredt").name.clone(),
+                time: shopday.to_string(),
+                recipes: format_recipes,
+                items,
+            })
+        }
+
+        self.beszerek.sort_by_key(|beszerlista| Time::from_str(&beszerlista.time));
+
+        None
     }
 
     pub fn calculate_matrix(&mut self) -> Option<String> {
@@ -69,20 +130,22 @@ impl Terv {
                                     }
                                 };
                                 for ingredient in recipe.ingredients.iter() {
-                                    let to = match self.osszetevok.by_name(&ingredient.name) {
-                                        Some(osszetevo) => &osszetevo.unit,
+                                    let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
+                                        Some(osszetevo) => osszetevo,
                                         None => {
                                             return Some(format!("Összetevő nem található: {}", ingredient.name));
                                         }
                                     };
-                                    let converted = match ingredient.convert(&to, &self.convs) {
+                                    let converted = match ingredient.convert(&osszetevo.unit, &self.convs) {
                                         Some(quantity) => quantity,
                                         None => {
-                                            return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, to));
+                                            return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, osszetevo.unit));
                                         }
                                     };
-                                    let sub = Sub{
-                                        quantity: converted * meal.number as f64 / recipe.number as f64, 
+                                    let quantity = converted * meal.number as f64 / recipe.number as f64;
+                                    let sub = Sub {
+                                        quantity, 
+                                        price: osszetevo.unit_price * quantity,
                                         recipe: recipe.name.clone(), 
                                         number: meal.number
                                     };
@@ -129,7 +192,7 @@ impl Terv {
                 }
             };
             // let mut i = 0;
-            println!("time: {:?}", time);
+            println!("time: {}", time);
             loop {
                 println!("idays: {:?}", idays);
                 match idays.first() {
@@ -137,7 +200,7 @@ impl Terv {
                         let vday = match vdays.iter().filter(|&x| x <= iday).max() {
                             Some(vday) => vday,
                             None => {
-                                return Some(format!("Nem lehet venni {}-t, az alábbi napokra: {:?}, elállási idő: {:?}, vásárnapok: {:?}",
+                                return Some(format!("Nem lehet venni {}-t, az alábbi napokra: {:?}, elállási idő: {}, vásárnapok: {:?}",
                                     ingredient, idays, time, vdays));
                             }
                         };
@@ -145,7 +208,7 @@ impl Terv {
                         let hash = vasar.get_mut(vday).expect("Hiba a kódban, korábban az összes vday-t belepakoltuk vasar-ba.");
                         hash.insert(ingredient.clone(), true);
                         if *idays.iter().min().expect("A match-nál ellenőriztük, hogy van a listának első eleme.") >= *vday + *time {
-                            return Some(format!("nem lehet megvenni {} összetevőt ekkorra: {:?}, előtte lévő vásárlás: {:?}, elállási idő: {:?}",
+                            return Some(format!("nem lehet megvenni {} összetevőt ekkorra: {}, előtte lévő vásárlás: {}, elállási idő: {}",
                                 ingredient, iday, vday, time));
                         }
                         idays.retain(|&jday| jday >= *vday + *time);
@@ -186,7 +249,7 @@ impl Terv {
 
         for meal in meals.iter() {
             let day = meal.day.as_day().clone();
-            println!("meal.recipe: {}, recipe: {}", meal.recipe, self.recipes[0].name);
+            println!("meal.recipe: {}, recipe: {}", meal.recipe, self.recipes.get(0).unwrap().name);
             let recipe = match self.recipes.get_recipe(&meal.recipe) {
                 Some(recipe) => recipe,
                 None => {
@@ -202,20 +265,22 @@ impl Terv {
                     }
                 };
                 let hash = self.matrix.entry(ShopDay::Day(vday)).or_insert(HashMap::new());
-                let to = match self.osszetevok.by_name(&ingredient.name) {
-                    Some(osszetevo) => &osszetevo.unit,
+                let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
+                    Some(osszetevo) => osszetevo,
                     None => {
                         return Some(format!("Összetevő nem található: {}", ingredient.name));
                     }
                 };
-                let converted = match ingredient.convert(&to, &self.convs) {
+                let converted = match ingredient.convert(&osszetevo.unit, &self.convs) {
                     Some(quantity) => quantity,
                     None => {
-                        return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, to));
+                        return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, osszetevo.unit));
                     }
                 };
-                let sub = Sub{
-                    quantity: converted * meal.number as f64 / recipe.number as f64, 
+                let quantity = converted * meal.number as f64 / recipe.number as f64;
+                let sub = Sub {
+                    quantity, 
+                    price: osszetevo.unit_price * quantity,
                     recipe: meal.recipe.clone(), 
                     number: meal.number
                 };
@@ -296,12 +361,13 @@ fn test_calculate_matrix() {
                 day: ShopDay::Day(Time::from_str("1").unwrap()),
                 name: String::from("egy"),
             },
-            // Shopping {
-            //     day: ShopDay::Day(Time::from_str("2").unwrap()),
-            //     name: String::from("kettő"),
-            // }
+            Shopping {
+                day: ShopDay::Day(Time::from_str("2").unwrap()),
+                name: String::from("kettő"),
+            }
         ]),
         matrix: Matrix::new(),
+        beszerek: BeszerListak(Vec::new()),
         convs: Conversations(vec![
             Conversation{ from: "g".to_string(), to: "kg".to_string(), factor: 0.001},
             Conversation{ from: "dkg".to_string(), to: "kg".to_string(), factor: 0.01},
@@ -313,10 +379,10 @@ fn test_calculate_matrix() {
         version: 0,
     };
 
-    if let Some(err) = terv.calculate_matrix() {
+    if let Some(err) = terv.make_beszerek() {
         panic!("{}", err);
     }
 
-    print!("matrix: {:#?}", terv.matrix);
+    print!("beszerek: {:#?}", terv.beszerek);
     panic!("siker");
 }

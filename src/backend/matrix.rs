@@ -6,6 +6,7 @@ use crate::shop::{Shopping, ShopDay};
 #[derive(PartialEq, Clone, Debug)]
 pub struct Sub {
     pub quantity: f64,
+    pub price: f64,
     pub recipe: String,
     pub number: u32,
 }

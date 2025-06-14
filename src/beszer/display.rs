@@ -2,6 +2,7 @@ use yew::prelude::*;
 use web_sys::HtmlInputElement;
 use std::collections::HashMap;
 
+
 use crate::terv::TervContext;
 use crate::shop::{Shopping, ShopDay, Shoppings};
 use crate::backend::matrix::{Sub, Subs};
@@ -10,10 +11,12 @@ use crate::terv::display::TervProps;
 
 pub struct BeszerPage {
     pub error: Option<String>,
+    pub current_beszer: Option<usize>,
 }
 
 pub enum BeszerMsg {
     Calculate,
+    SearchBeszer(String),
 }
 
 impl Component for BeszerPage {
@@ -25,8 +28,23 @@ impl Component for BeszerPage {
         let mut terv = terv.borrow_mut();
         
         BeszerPage {
-            error: terv.calculate_matrix(),
+            error: terv.make_beszerek(),
+            current_beszer: Some(0),
         }
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
+        let mut terv = terv.borrow_mut();
+
+        self.error = terv.make_beszerek();
+        if terv.beszerek.len() > 0 {
+            self.current_beszer = Some(0);
+        } else {
+            self.current_beszer = None;
+        }
+
+        true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -34,9 +52,16 @@ impl Component for BeszerPage {
         let mut terv = terv.borrow_mut();
         match msg {
             BeszerMsg::Calculate => {
-                terv.calculate_matrix();
+                terv.make_beszerek();
                 true
-            }
+            },
+            BeszerMsg::SearchBeszer(beszer_index) => {
+                if let Ok(beszer_index) = beszer_index.parse() {
+                    self.current_beszer = Some(beszer_index);
+                }
+                true
+            },
+            _ => false,
         }
     }
 
@@ -46,66 +71,109 @@ impl Component for BeszerPage {
         let terv = terv.borrow();
         let shoppingdays = terv.shoppingdays.clone();
 
+        let select_beszer = link.callback(|e: Event| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            BeszerMsg::SearchBeszer(input.value())
+        });
+
         html! {
             <div class="beszer">
                 if let Some(error) = &self.error {
                     <p>{ format!("error: {}", error) }</p>
-                } else {
+                } else if let None = self.current_beszer {
+                    <p>{ "Nincs beszerlista" }</p>
+                } else { 
+                if let Some(beszer) = terv.beszerek.get(self.current_beszer.unwrap()) {
+                    <p>{ "BeszerLista Selector" }</p>
+                    <select onchange={select_beszer}>
+                        { for terv.beszerek.iter().enumerate().map(|(index, beszer)| html! {
+                            <option value={index.to_string()} selected={Some(index) == self.current_beszer}>
+                                {format!("{}, {}", beszer.name, beszer.time)}
+                            </option>
+                        })}
+                    </select>
+
                     //<button onclick={link.callback(move |_| BeszerMsg::Calculate)}>{ "Calculate" }</button>
-                    <div style="display: flex">
-                    { for terv.matrix.iter().enumerate().map(|(index, (day, hash))| {
-                        let subs_arr: Vec<&Subs> = hash.values().collect();
-                        let mut names: Vec<&String> = subs_arr.iter().map(|subs| {
-                            subs.iter().map(|sub| {
-                                &sub.recipe
-                            })
-                        }).flatten().collect();
-                        names.dedup();
-
-                        let format_recipes: String = names.iter().enumerate().map(|(index, recipe)| {
-                            format!("{}. {}", index + 1, recipe)
-                        }).collect::<Vec<String>>().join(", ");
-
-                        html! {
-                            <table>
+                    <table>
+                        <tr>
+                            <th>{ beszer.name.clone() }</th>
+                            <th>{ beszer.time.clone() }</th>
+                            <th>{ beszer.recipes.clone() }</th>
+                        </tr>
+                        <tr>
+                            <th>{ "név (egységár)" }</th>
+                            <th>{ "recept (létszám)" }</th>
+                            <th>{ "[részeredmény (/fő)], mennyiség (/fő) mértékegység" }</th>
+                            <th>{ "[részeredmény (/fő)], ár (/fő)" }</th>
+                        </tr>
+                        { for beszer.items.iter().map(|item| {
+                            html! {
                                 <tr>
-                                    <th>{ shoppingdays.get_by_day(day).unwrap().name.clone() }</th>
-                                    <th>{ day.to_string() }</th>
-                                    <th>{ format_recipes.clone() }</th>
+                                    <td>{ item.name.clone() }</td>
+                                    <td>{ item.recipes.clone() }</td>
+                                    <td>{ item.quantities.clone() }</td>
+                                    <td>{ item.prices.clone() }</td>
                                 </tr>
-                                <tr>
-                                    <th>{ "Összetevő" }</th><th>{ "Recept (fő)" }</th><th>{ "[részeredmény], mennyiség, mértékegység" }</th>
-                                </tr>
-                                {for hash.iter().map(|(name, subs)| {
-                                    html! {
-                                        <tr>
-                                            <td>{ name.clone() }</td>
-                                            <td>{ subs.iter().map(|sub| {
-                                                format!("{} ({})", names.iter().position(|x| **x == sub.recipe).unwrap() + 1, sub.number)
-                                            }).collect::<Vec<String>>().join(", ") }</td>
-                                            <td>{ formatted_quantities(name, subs, &terv.osszetevok.by_name(name).unwrap().unit) }</td>
-                                        </tr>
-                                    }
-                                })
-                                }
+                            }
+                        })}
+                    </table>
+                }}
+                    // { for terv.matrix.iter().enumerate().map(|(index, (day, hash))| {
+                    //     let subs_arr: Vec<&Subs> = hash.values().collect();
+                    //     let mut names: Vec<&String> = subs_arr.iter().map(|subs| {
+                    //         subs.iter().map(|sub| {
+                    //             &sub.recipe
+                    //         })
+                    //     }).flatten().collect();
+                    //     names.dedup();
+
+                    //     let format_recipes: String = names.iter().enumerate().map(|(index, recipe)| {
+                    //         format!("{}. {}", index + 1, recipe)
+                    //     }).collect::<Vec<String>>().join(", ");
+
+                    //     html! {
+                    //         <table>
+                    //             <tr>
+                    //                 <th>{ shoppingdays.get_by_day(day).unwrap().name.clone() }</th>
+                    //                 <th>{ day.to_string() }</th>
+                    //                 <th>{ format_recipes.clone() }</th>
+                    //             </tr>
+                    //             <tr>
+                    //                 <th>{ "Összetevő" }</th><th>{ "Recept (fő)" }</th><th>{ "[részeredmény], mennyiség, mértékegység" }</th>
+                    //             </tr>
+                    //             {for hash.iter().map(|(name, subs)| {
+                    //                 html! {
+                    //                     <tr>
+                    //                         <td>{ name.clone() }</td>
+                    //                         <td>{ subs.iter().map(|sub| {
+                    //                             format!("{} ({})", names.iter().position(|x| **x == sub.recipe).unwrap() + 1, sub.number)
+                    //                         }).collect::<Vec<String>>().join(", ") }</td>
+                    //                         <td>{ format_quantities(subs, &terv.osszetevok.by_name(name).unwrap().unit) }</td>
+                    //                     </tr>
+                    //                 }
+                    //             })
+                    //             }
                             
-                            </table>
-                        }
-                    })}
-                    </div>
-                }
+                    //         </table>
+                    //     }
+                    // })}
+                    //</div>
+                
             </div>
         }
     }
 }
 
-fn formatted_quantities(name: &str, subs: &Subs, unit: &str) -> String {
-    let sum = subs.iter().map(|sub| { sub.quantity })
-        .sum::<f64>().to_string();
+pub fn format_quantities(subs: &Subs, unit: &str) -> String {
+    let fquantity = |quantity: f64, number: u32| format!("{} ({})", round(quantity, 2), round(quantity / number as f64, 2));
+    let sum = fquantity(
+        subs.iter().map(|sub| { sub.quantity }).sum::<f64>(),
+        subs.iter().map(|sub| { sub.number }).sum::<u32>());
     if subs.len() > 1 {
          return format!("{}: {} {}", 
-            subs.iter().map(|sub| { sub.quantity.to_string() })
-                .collect::<Vec<String>>().join(" "), 
+            subs.iter().map(|sub| { 
+                fquantity(sub.quantity, sub.number)
+            }).collect::<Vec<String>>().join(" + "), 
             sum,
             unit);
     } else {
@@ -113,4 +181,39 @@ fn formatted_quantities(name: &str, subs: &Subs, unit: &str) -> String {
             sum,
             unit);
     }
+}
+
+pub fn format_prices(subs: &Subs) -> String {
+    let fprice = |price: f64, number: u32| format!("{} ({})", round(price, 2), round(price / number as f64, 2));
+    let sum = fprice(
+        subs.iter().map(|sub| { sub.price }).sum::<f64>(),
+        subs.iter().map(|sub| { sub.number }).sum::<u32>());
+    if subs.len() > 1 {
+         return format!("{}: {}", 
+            subs.iter().map(|sub| { 
+                fprice(sub.price, sub.number)
+            }).collect::<Vec<String>>().join(" + "), 
+            sum);
+    } else {
+        return format!("{}",
+            sum);
+    }
+}
+
+pub fn round(value: f64, decimal: i32) -> f64 {
+    let factor = 10f64.powi(decimal);
+    (value * factor).round() / factor
+}
+
+#[test]
+fn test_decimal_display() {
+    let a: f64 = 1.2;
+    let b: f64 = 1.23;
+    let c: f64 = 1.234;
+    let d: f64 = 1.2345;
+
+    println!("{} {} {} {}", a, b, round(c, 2), d);
+    
+    
+    //panic!();
 }

@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use gloo::console::log;
 
 use crate::backend::time::Time;
+use crate::convert::Conversation;
 use crate::recipe::{Recipe, Recipes};
 use crate::shop::{ShopDay, Shopping, Shoppings};
 use crate::recipe::ingredient::Ingredient;
@@ -100,8 +101,41 @@ impl Data {
             format!("{}\t{}", shopping.name, shopping.day.to_string())
         }).collect::<Vec<String>>().join("\n");
     }
-    pub fn convert_string_besz(&mut self, terv: &Terv) {}
-    pub fn convert_string_conv(&mut self, terv: &Terv) {}
+    pub fn convert_string_besz(&mut self, terv: &Terv) {
+        if terv.beszerek.len() < 1 { self.beszer = String::new(); return }
+
+        let max_item_cout = terv.beszerek.iter()
+        .map(|beszer| { beszer.items.len() }).max().unwrap();
+
+        self.beszer = (0..max_item_cout + 2).map(|row| {
+            if row == 0 {
+                terv.beszerek.iter().map(|beszer| {
+                    format!("{}\t{}\t{}\t\t\t", beszer.name, beszer.time, beszer.recipes)
+                }).collect::<Vec<_>>().join("")
+            } else if row == 1 {
+                (0..terv.beszerek.len()).map(|_| {
+                    format!("{}\t{}\t{}\t{}\t\t",
+                        "név (egységár)", 
+                        "recept (létszám)", 
+                        "[részeredmény (/fő)], mennyiség (/fő) mértékegység", 
+                        "[részeredmény (/fő)], ár (/fő)")
+                }).collect::<Vec<_>>().join("")
+            } else {
+                terv.beszerek.iter().map(|beszer| {
+                    if let Some(item) = beszer.items.get(row - 2) {
+                        format!("{}\t{}\t{}\t{}\t\t", item.name, item.recipes, item.quantities, item.prices)
+                    } else {
+                        String::from("\t\t\t\t\t")
+                    }
+                }).collect::<Vec<_>>().join("")
+            }
+        }).collect::<Vec<_>>().join("\n");
+    }
+    pub fn convert_string_conv(&mut self, terv: &Terv) {
+        self.conv = terv.convs.iter().map(|conv| {
+            format!("{}\t{}\t{}", conv.from, conv.to, conv.factor)
+        }).collect::<Vec<_>>().join("\n");
+    }
 
     pub fn convert_data(&self, terv: &mut Terv){
         if self.command & com::OSSZ > 0 {
@@ -190,6 +224,15 @@ impl Data {
     
     pub fn convert_data_conv(&self, terv: &mut Terv) {
         if self.conv == "" { return; }
+
+        terv.convs.0 = self.conv.split("\n").map(|row| {
+            let cells: Vec<_> = row.split("\t").collect();
+            Conversation {
+                from: cells[0].to_string(),
+                to: cells[1].to_string(),
+                factor: cells[2].parse().unwrap(),
+            }
+        }).collect();
     }
 }
 
