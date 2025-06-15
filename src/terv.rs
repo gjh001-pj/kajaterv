@@ -39,11 +39,11 @@ impl Terv {
             matrix: Matrix::new(),
             beszerek: BeszerListak(Vec::new()),
             convs: Conversations(vec![
-                Conversation{ from: "g".to_string(), to: "kg".to_string(), factor: 0.001},
-                Conversation{ from: "dkg".to_string(), to: "kg".to_string(), factor: 0.01},
-                Conversation{ from: "ml".to_string(), to: "l".to_string(), factor: 0.001},
-                Conversation{ from: "dl".to_string(), to: "l".to_string(), factor: 0.1},
-                Conversation{ from: "cl".to_string(), to: "l".to_string(), factor: 0.01},
+                // Conversation{ from: "g".to_string(), to: "kg".to_string(), factor: 0.001},
+                // Conversation{ from: "dkg".to_string(), to: "kg".to_string(), factor: 0.01},
+                // Conversation{ from: "ml".to_string(), to: "l".to_string(), factor: 0.001},
+                // Conversation{ from: "dl".to_string(), to: "l".to_string(), factor: 0.1},
+                // Conversation{ from: "cl".to_string(), to: "l".to_string(), factor: 0.01},
             ]),
             error: None,
             version: 0,
@@ -102,7 +102,7 @@ impl Terv {
             })
         }
 
-        self.beszerek.sort_by_key(|beszerlista| Time::from_str(&beszerlista.time));
+        self.beszerek.sort_by_key(|beszerlista| beszerlista.time.parse::<Time>());
 
         None
     }
@@ -312,19 +312,19 @@ fn test_calculate_matrix() {
             Osszetevo {
                 name: String::from("aaa"), 
                 unit: String::from("m"), 
-                time: ShopDay::Day(Time::from_str("1").unwrap()), 
+                time: ShopDay::Day("1".parse().unwrap()), 
                 unit_price: 100.0
             },
             Osszetevo {
                 name: String::from("bbb"), 
                 unit: String::from("m"), 
-                time: ShopDay::Day(Time::from_str("2").unwrap()), 
+                time: ShopDay::Day("2".parse().unwrap()), 
                 unit_price: 200.0
             },
             Osszetevo {
                 name: String::from("ccc"), 
                 unit: String::from("m"), 
-                time: ShopDay::Day(Time::from_str("3").unwrap()), 
+                time: ShopDay::Day("3".parse().unwrap()), 
                 unit_price: 300.0
             }
         ]),
@@ -348,21 +348,21 @@ fn test_calculate_matrix() {
             Meal {
             recipe: String::from("alma"),
             number: 20,
-            day: ShopDay::Day(Time::from_str("1").unwrap())
+            day: ShopDay::Day("1".parse().unwrap())
             },
             Meal {
                 recipe: String::from("alma"),
                 number: 10,
-                day: ShopDay::Day(Time::from_str("2").unwrap())
+                day: ShopDay::Day("2".parse().unwrap())
             }
         ]),
         shoppingdays: Shoppings(vec![
             Shopping {
-                day: ShopDay::Day(Time::from_str("1").unwrap()),
+                day: ShopDay::Day("1".parse().unwrap()),
                 name: String::from("egy"),
             },
             Shopping {
-                day: ShopDay::Day(Time::from_str("2").unwrap()),
+                day: ShopDay::Day("2".parse().unwrap()),
                 name: String::from("kettő"),
             }
         ]),

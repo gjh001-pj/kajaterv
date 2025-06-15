@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use gloo::console::log;
+use std::str::FromStr;
 
 use crate::backend::time::Time;
 use crate::convert::Conversation;
@@ -166,7 +167,7 @@ impl Data {
             Osszetevo {
                 name: cells[0].to_string(),
                 unit: cells[1].to_string(),
-                time: match Time::from_str(&cells[2]) {
+                time: match cells[2].parse() {
                     Ok(t) => ShopDay::Day(t),
                     Err(_) => ShopDay::Name(cells[2].to_string()),
                 },
@@ -206,7 +207,7 @@ impl Data {
             Meal {
                 recipe: cells[0].to_string(),
                 number: cells[1].parse().unwrap(),
-                day: ShopDay::from_str(cells[2]),
+                day: ShopDay::from(cells[2]),
             }
         }).collect();
     }
@@ -217,7 +218,7 @@ impl Data {
             let cells: Vec<&str> = row.split("\t").collect();
             Shopping {
                 name: cells[0].to_string(),
-                day: ShopDay::from_str(cells[1]),
+                day: ShopDay::from(cells[1]),
             }
         }).collect();
     }
@@ -235,12 +236,6 @@ impl Data {
         }).collect();
     }
 }
-
-pub fn copy_data_to_clipboard(){}
-
-pub fn read_data_from_clibboard(){}
-
-pub fn copy_beszerlista(){}
 
 #[test]
 fn test3() {

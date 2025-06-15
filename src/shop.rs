@@ -1,5 +1,9 @@
+use core::num;
 use std::ops::{Deref, DerefMut};
+use std::fmt::Display;
+
 use crate::backend::time::Time;
+
 
 pub mod display;
 
@@ -12,20 +16,6 @@ pub enum ShopDay {
 impl ShopDay {
     pub fn new() -> Self {
         Self::Name(String::from(""))
-    }
-    pub fn from_str(day: &str) -> Self {
-        if let Ok(day) = Time::from_str(day) {
-            Self::Day(day)
-        } else {
-            Self::Name(day.to_string())
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            ShopDay::Day(number) => number.to_string(),
-            ShopDay::Name(name) => name.clone(),
-        }
     }
 
     pub fn as_day(&self) -> &Time {
@@ -57,6 +47,25 @@ impl ShopDay {
             return name;
         } else {
             panic!("Not Name {:?}", self);
+        }
+    }
+}
+
+impl From<&str> for ShopDay {
+    fn from(s: &str) -> Self {
+        if let Ok(day) = s.parse() {
+            Self::Day(day)
+        } else {
+            Self::Name(s.to_string())
+        }
+    }
+}
+
+impl Display for ShopDay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShopDay::Day(number) => write!(f, "{}", number),
+            ShopDay::Name(name) => write!(f, "{}", name),
         }
     }
 }

@@ -1,6 +1,12 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
 use gloo::console::log;
+use gloo::net::websocket::events::CloseEvent;
+use web_sys::js_sys::JSON;
+use gloo::events::EventListener;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{MessageEvent, Window};
+use wasm_bindgen::closure::Closure;
 
 use crate::terv::TervContext;
 use crate::backend::keyboard::TableFocusNavigator;
@@ -35,6 +41,31 @@ impl Component for OsszetevoPage {
     fn create(ctx: &Context<Self>) -> Self {
         let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
         let terv = terv.borrow();
+
+        let window = web_sys::window().unwrap();
+
+        let closure = Closure::wrap(Box::new(move |event: Event| {
+            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
+            // You can cast to `web_sys::BeforeUnloadEvent` if needed
+            log!("beforeunload triggered");
+            panic!("beforeunload triggered");
+            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
+    
+            // Optionally cancel the event
+            // event.prevent_default(); // Not always necessary
+            // You can try to set returnValue here if you want a prompt
+            // but browsers may ignore it.
+    
+        }) as Box<dyn FnMut(_)>);
+
+        window.add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref()).unwrap();
+
+        let listener2 = EventListener::new(&window, "beforeunload", move |event| {
+            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
+            log!("closeevent triggered");
+            panic!("closeevent triggered");
+            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
+        });
 
         Self {
             focus_nav: TableFocusNavigator::new(terv.osszetevok.len(), 4),
@@ -78,7 +109,7 @@ impl Component for OsszetevoPage {
             },
             OsszetevoMsg::UpdateTime(index, time) => {
                 if let Some(imput) = terv.osszetevok.get_mut(index) {
-                    if let Ok(time) = Time::from_str(&time) {
+                    if let Ok(time) = time.parse() {
                         imput.time = ShopDay::Day(time);
                     }
                 }

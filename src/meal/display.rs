@@ -64,7 +64,7 @@ impl Component for MealPage {
                 true
             },
             MealMsg::UpdateDay(index, day) => {
-                if let Ok(day) = Time::from_str(&day) {
+                if let Ok(day) = day.parse() {
                     terv.meals.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
                     terv.meals.get_mut(index).unwrap().day = ShopDay::Name(day);

@@ -7,6 +7,7 @@ use crate::terv::TervContext;
 use crate::shop::{Shopping, ShopDay, Shoppings};
 use crate::backend::matrix::{Sub, Subs};
 use crate::terv::display::TervProps;
+use crate::backend::round::RoundD;
 
 
 pub struct BeszerPage {
@@ -165,7 +166,7 @@ impl Component for BeszerPage {
 }
 
 pub fn format_quantities(subs: &Subs, unit: &str) -> String {
-    let fquantity = |quantity: f64, number: u32| format!("{} ({})", round(quantity, 2), round(quantity / number as f64, 2));
+    let fquantity = |quantity: f64, number: u32| format!("{} ({})", quantity.roundd(2), (quantity / number as f64).roundd(2));
     let sum = fquantity(
         subs.iter().map(|sub| { sub.quantity }).sum::<f64>(),
         subs.iter().map(|sub| { sub.number }).sum::<u32>());
@@ -184,7 +185,7 @@ pub fn format_quantities(subs: &Subs, unit: &str) -> String {
 }
 
 pub fn format_prices(subs: &Subs) -> String {
-    let fprice = |price: f64, number: u32| format!("{} ({})", round(price, 2), round(price / number as f64, 2));
+    let fprice = |price: f64, number: u32| format!("{} ({})", price.roundd(2), (price / number as f64).roundd(2));
     let sum = fprice(
         subs.iter().map(|sub| { sub.price }).sum::<f64>(),
         subs.iter().map(|sub| { sub.number }).sum::<u32>());
@@ -199,6 +200,8 @@ pub fn format_prices(subs: &Subs) -> String {
             sum);
     }
 }
+
+
 
 pub fn round(value: f64, decimal: i32) -> f64 {
     let factor = 10f64.powi(decimal);

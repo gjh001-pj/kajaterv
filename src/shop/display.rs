@@ -53,7 +53,7 @@ impl Component for ShopPage {
                 true
             },
             ShopMsg::UpdateShop(index, dayname) => {
-                if let Ok(day) = Time::from_str(&dayname) {
+                if let Ok(day) = dayname.parse() {
                     terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
                     terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Name(dayname);
