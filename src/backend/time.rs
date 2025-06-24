@@ -2,9 +2,12 @@ use std::ops::{Deref, DerefMut, Add, Sub};
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
+const MINS_IN_HOUR: i32 = 60;
+const HOURS_IN_DAY: i32 = 24;
+
 const MIN: i32 = 1;
-const HOUR: i32 = 60 * MIN;
-const DAY: i32 = 24 * HOUR;
+const HOUR: i32 = MINS_IN_HOUR * MIN;
+const DAY: i32 = HOURS_IN_DAY * HOUR;
 
 #[derive(PartialEq, Debug, Clone, Copy, Default, Eq, Hash, Ord, PartialOrd)]
 pub struct Time {
@@ -73,9 +76,20 @@ impl FromStr for Time {
 
 impl Display for Time {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let day = self.mins / DAY;
-        let hour = (self.mins - day * DAY) / HOUR;
-        let min = (self.mins - day * DAY - hour * HOUR) / MIN;
+        //let sign = if self.mins < 0 { "-" } else { "" };
+        //let mins = self.mins;
+
+        let mut day = self.mins / DAY;
+        let mut hour = (self.mins - day * DAY) / HOUR;
+        if hour < 0 {
+            day -= 1;
+            hour += HOURS_IN_DAY;
+        }
+        let mut min = (self.mins - day * DAY - hour * HOUR) / MIN;
+        if min < 0 {
+            hour -= 1;
+            min += MINS_IN_HOUR;
+        }
         write!(f, "{}. {}:{:02}", day, hour, min)
     }
 }
@@ -112,3 +126,26 @@ impl DerefMut for Time {
     }
 }
 
+
+#[test]
+fn test_time_parse() {
+    let a = "-2. 8:45".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "-2. 13:00".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "-2. 19:00".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "-1. 8:45".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "-1. 13:00".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "-1. 19:00".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "0. 8:45".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "0. 13:00".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    let a = "0. 19:00".parse::<Time>().unwrap();
+    println!("{a} = {a:?}");
+    //panic!("");
+}

@@ -2,7 +2,7 @@ use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
 use crate::backend::keyboard::TableFocusNavigator;
-use crate::terv::TervContext;
+use crate::terv::AppContext;
 use crate::terv::display::TervProps;
 
 use super::*;
@@ -29,8 +29,8 @@ impl Component for MealPage {
     type Properties = TervProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
 
         MealPage {
             focus_nav: TableFocusNavigator::new(terv.meals.len(), 3),
@@ -38,15 +38,16 @@ impl Component for MealPage {
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
         self.focus_nav.build(terv.meals.len(), 3);
         true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
+
         match msg {
             MealMsg::AddMeal => {
                 terv.meals.push(Meal::new());
@@ -90,15 +91,19 @@ impl Component for MealPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = link.context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
+
+        let recipe_list = terv.recipes.iter().map(|recipe| &recipe.name);
+        let mut recipe_list: Vec<_> = recipe_list.chain(terv.meals.iter().map(|meal| &meal.recipe)).collect();
+        recipe_list.sort();
+        recipe_list.dedup();
 
         html! {
             <div class="meals">
-                <button onclick={link.callback(move |_| MealMsg::AddMeal)}>{ "Add Meal" }</button>
                 <datalist id="recipe_list">
-                    { for terv.recipes.iter().map(|value| {
-                        html! {<option value={value.name.clone()} />}
+                    { for recipe_list.iter().map(|&value| {
+                        html! {<option value={value.clone()} />}
                     })}
                 </datalist>
                 <table>
@@ -133,7 +138,7 @@ impl Component for MealPage {
                             <tr>
                                 <td><input type="text" list="recipe_list" value={value.recipe.clone()} onchange={update_recipe}
                                     onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></td>
-                                <td><input type="number" min="0" value={value.number.to_string()} onchange={update_number}
+                                <td><input type="number" min="0" value={if value.number != 0 {value.number.to_string()} else {"".to_string()}} onchange={update_number}
                                     onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></td>
                                 <td><input value={value.day.to_string()} onchange={update_day}
                                     onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></td>
@@ -141,10 +146,17 @@ impl Component for MealPage {
                                 if !terv.recipes.exist(&value.recipe) {
                                     <td class="err">{ "A recept nem található" }</td>
                                 }
+                                if value.number == 0 {
+                                    <td class="warn">{ "A létszám nulla" }</td>
+                                }
+                                if value.day == ShopDay::Day(Time::new()) || value.day == ShopDay::Name(String::new()) {
+                                    <td class="warn">{ "A nap nulla / nem változott" }</td>
+                                }
                             </tr>
                         }
                     })}
                 </table>
+                <button onclick={link.callback(move |_| MealMsg::AddMeal)}>{ "Add Meal" }</button>
             </div>
         }
     }

@@ -70,7 +70,7 @@ impl Data {
 
     pub fn convert_string_ossz(&mut self, terv: &Terv) {
         self.osszetevok = terv.osszetevok.iter().map(|ossz| {
-            format!("{}\t{}\t{}\t{}", ossz.name, ossz.unit, ossz.time.to_string(), ossz.unit_price)
+            format!("{}\t{}\t{}\t{}", ossz.name, ossz.unit, ossz.time.to_string(), ossz.unit_price.to_string().replace(".", ","))
         }).collect::<Vec<String>>().join("\n");
     }
     pub fn convert_string_rec(&mut self, terv: &Terv) {
@@ -84,7 +84,7 @@ impl Data {
             } else {
                 terv.recipes.iter().map(|recipe| {
                     if let Some(ingredient) = recipe.ingredients.get(row - 1) {
-                        format!("{}\t{}\t{}\t\t", ingredient.name, ingredient.quantity, ingredient.unit)
+                        format!("{}\t{}\t{}\t\t", ingredient.name, ingredient.quantity.to_string().replace(".", ","), ingredient.unit)
                     } else {
                         String::from("\t\t\t\t")
                     }
@@ -124,7 +124,7 @@ impl Data {
             } else {
                 terv.beszerek.iter().map(|beszer| {
                     if let Some(item) = beszer.items.get(row - 2) {
-                        format!("{}\t{}\t{}\t{}\t\t", item.name, item.recipes, item.quantities, item.prices)
+                        format!("{}\t{}\t{}\t{}\t\t", item.name, item.recipes, item.quantities.replace(".", ","), item.prices)
                     } else {
                         String::from("\t\t\t\t\t")
                     }
@@ -134,7 +134,7 @@ impl Data {
     }
     pub fn convert_string_conv(&mut self, terv: &Terv) {
         self.conv = terv.convs.iter().map(|conv| {
-            format!("{}\t{}\t{}", conv.from, conv.to, conv.factor)
+            format!("{}\t{}\t{}", conv.from, conv.to, conv.factor.to_string().replace(".", ","))
         }).collect::<Vec<_>>().join("\n");
     }
 
@@ -171,7 +171,7 @@ impl Data {
                     Ok(t) => ShopDay::Day(t),
                     Err(_) => ShopDay::Name(cells[2].to_string()),
                 },
-                unit_price: cells[3].parse().unwrap(),
+                unit_price: cells[3].replace(",", ".").parse().unwrap_or(0.0),
             }
         }).collect();
     }
@@ -185,14 +185,15 @@ impl Data {
                 if ing_index == 0 {
                     recipes.push(Recipe {
                         name: slice[0].to_string(),
-                        number: slice[1].parse().unwrap(),
+                        number: slice[1].parse().unwrap_or(0),
                         ingredients: Vec::new(),
                     })
                 } else {
+                    if slice[0] == "" { continue; }
                     let recipe = recipes.get_mut(rec_index).unwrap();
                     recipe.ingredients.push(Ingredient {
                         name: slice[0].to_string(),
-                        quantity: slice[1].parse().unwrap(),
+                        quantity: slice[1].replace(",", ".").parse().unwrap_or(0.0),
                         unit: slice[2].to_string(),
                     })
                 }
@@ -206,7 +207,7 @@ impl Data {
             let cells: Vec<&str> = row.split("\t").collect();
             Meal {
                 recipe: cells[0].to_string(),
-                number: cells[1].parse().unwrap(),
+                number: cells[1].parse().unwrap_or(0),
                 day: ShopDay::from(cells[2]),
             }
         }).collect();
@@ -222,7 +223,7 @@ impl Data {
             }
         }).collect();
     }
-    
+
     pub fn convert_data_conv(&self, terv: &mut Terv) {
         if self.conv == "" { return; }
 
@@ -231,7 +232,7 @@ impl Data {
             Conversation {
                 from: cells[0].to_string(),
                 to: cells[1].to_string(),
-                factor: cells[2].parse().unwrap(),
+                factor: cells[2].replace(",", ".").parse().unwrap_or(1.0),
             }
         }).collect();
     }

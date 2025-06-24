@@ -8,7 +8,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{MessageEvent, Window};
 use wasm_bindgen::closure::Closure;
 
-use crate::terv::TervContext;
+use crate::terv::AppContext;
 use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::display::TervProps;
 use crate::backend::time::Time;
@@ -39,33 +39,8 @@ impl Component for OsszetevoPage {
     type Properties = TervProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
-
-        let window = web_sys::window().unwrap();
-
-        let closure = Closure::wrap(Box::new(move |event: Event| {
-            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
-            // You can cast to `web_sys::BeforeUnloadEvent` if needed
-            log!("beforeunload triggered");
-            panic!("beforeunload triggered");
-            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
-    
-            // Optionally cancel the event
-            // event.prevent_default(); // Not always necessary
-            // You can try to set returnValue here if you want a prompt
-            // but browsers may ignore it.
-    
-        }) as Box<dyn FnMut(_)>);
-
-        window.add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref()).unwrap();
-
-        let listener2 = EventListener::new(&window, "beforeunload", move |event| {
-            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
-            log!("closeevent triggered");
-            panic!("closeevent triggered");
-            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
-        });
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
 
         Self {
             focus_nav: TableFocusNavigator::new(terv.osszetevok.len(), 4),
@@ -73,16 +48,16 @@ impl Component for OsszetevoPage {
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
         self.focus_nav.build(terv.osszetevok.len(), 4);
         true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        //let terv = use_context::<TervContext>().expect("Terv not found");
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        //let terv = use_context::<AppContext>().expect("Terv not found");
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
 
         match msg {
             OsszetevoMsg::Add => {
@@ -137,9 +112,9 @@ impl Component for OsszetevoPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
-
+        let app_data = link.context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
+        
         let all_osszetevo_name_list: Vec<&String> = terv.recipes.iter().map(|recipe| {
             recipe.ingredients.iter().map(|ingredient| {
                 &ingredient.name

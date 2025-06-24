@@ -10,13 +10,14 @@ use wasm_bindgen::closure::Closure;
 
 use crate::meal::{self, Meal};
 use crate::terv::display::TervMsg;
-use crate::terv::TervContext;
+use crate::terv::AppContext;
 use super::data::Data;
 use super::data::com;
+use crate::terv::Terv;
+use crate::terv::display::save_if;
 
 pub struct Socket {
     listener: Option<EventListener>,
-    listener2: Option<EventListener>,
 }
 
 // #[derive(Properties, PartialEq)]
@@ -68,62 +69,28 @@ impl Component for Socket {
             }
         });
 
-        let closure = Closure::wrap(Box::new(move |event: Event| {
-            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
-            // You can cast to `web_sys::BeforeUnloadEvent` if needed
-            log!("beforeunload triggered");
-            panic!("beforeunload triggered");
-            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
-    
-            // Optionally cancel the event
-            // event.prevent_default(); // Not always necessary
-            // You can try to set returnValue here if you want a prompt
-            // but browsers may ignore it.
-    
-        }) as Box<dyn FnMut(_)>);
-
-        window.add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref()).unwrap();
-
-        let listener2 = EventListener::new(&window, "beforeunload", move |event| {
-            let event = event.dyn_ref::<web_sys::CloseEvent>().unwrap();
-            log!("closeevent triggered");
-            panic!("closeevent triggered");
-            //event.set_return_value(Some("You have unsaved changes. Do you really want to leave?"));
-        });
-
         ctx.link().send_message(SocketMsg::RequestData);
 
         Self {
-            listener: Some(listener),
-            listener2: Some(listener2)
+            listener: Some(listener)
         }
     }
 
-    fn destroy(&mut self, ctx: &Context<Self>) {
-        
-    }
-
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
+        let mut old_terv = app_data.old_terv.borrow_mut();
         match msg {
             SocketMsg::ReceivedData(data) => {
                 data.convert_data(&mut terv);
+                data.convert_data(&mut old_terv);
                 //ctx.props().on_data_received.emit(());
                 ctx.link().send_message(SocketMsg::TriggerRedraw);
+                log!("egyenlő: ", *terv == *old_terv);
                 true
             },
             SocketMsg::SendData => {
-                let mut data = Data::new();
-                terv.make_beszerek();
-                data.convert_string(&terv, com::ALL);
-                if let Some(window) = web_sys::window() {
-                    let json_data = serde_json::to_string(&data).unwrap();
-                    //log!("data from rust:", data.command, "json_data", &json_data);
-                    let _ = window.parent().unwrap().unwrap()
-                        .post_message(&JsValue::from_str(&json_data), "*");
-                }
-                false
+                save_if(&mut terv, &mut old_terv)
             },
             SocketMsg::RequestData => {
                 let mut data = Data::new();
@@ -157,3 +124,18 @@ impl Component for Socket {
         }
     }
 }
+
+pub fn send_data(terv: &mut Terv, old_terv: &mut Terv) {
+    let mut data = Data::new();
+    terv.pure();
+    *old_terv = terv.clone();
+    terv.make_beszerek();
+    data.convert_string(terv, com::ALL);
+    if let Some(window) = web_sys::window() {
+        let json_data = serde_json::to_string(&data).unwrap();
+        //log!("data from rust:", data.command, "json_data", &json_data);
+        let _ = window.parent().unwrap().unwrap()
+            .post_message(&JsValue::from_str(&json_data), "*");
+    }
+}
+

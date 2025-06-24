@@ -50,6 +50,33 @@ impl Terv {
         }
     }
 
+    pub fn clone_pure(&self) -> Self {
+        Self {
+            osszetevok: Osszetevok(self.osszetevok.iter().filter(|&v| v != &Osszetevo::new()).cloned().collect::<Vec<_>>()),
+            recipes: Recipes(self.recipes.iter().filter(|&v| v != &Recipe::new()).cloned().collect::<Vec<_>>()),
+            meals: Meals(self.meals.iter().filter(|&v| v != &Meal::new()).cloned().collect::<Vec<_>>()),
+            shoppingdays: Shoppings(self.shoppingdays.iter().filter(|&v| v != &Shopping::new()).cloned().collect::<Vec<_>>()),
+            matrix: Matrix::new(),
+            beszerek: BeszerListak::new(),
+            convs: Conversations(self.convs.iter().filter(|&v| v != &Conversation::new()).cloned().collect::<Vec<_>>()),
+            error: self.error.clone(),
+            version: self.version,
+            
+        }
+    }
+
+    pub fn pure(&mut self) {
+        self.osszetevok.retain(|v| v != &Osszetevo::new());
+        self.recipes.retain(|v| v != &Recipe::new());
+        self.meals.retain(|v| v != &Meal::new());
+        self.shoppingdays.retain(|v| v != &Shopping::new());
+        self.matrix = Matrix::new();
+        self.beszerek = BeszerListak::new();
+        self.convs.retain(|v| v != &Conversation::new());
+        self.error = None;
+        self.version = self.version;
+    }
+
     pub fn make_beszerek(&mut self) -> Option<String> {
         if let Some(err) = self.calculate_matrix() {
             return Some(err);
@@ -61,6 +88,7 @@ impl Terv {
     }
 
     pub fn matrix_to_beszerek(&mut self) -> Option<String> {
+        self.beszerek.clear();
         for (shopday, raw_items) in self.matrix.iter() {
             let mut recipes: Vec<&String> = raw_items.values().map(|subs| {
                 subs.iter().map(|sub| {
@@ -292,7 +320,25 @@ impl Terv {
     }
 }
 
-pub type TervContext = Rc<RefCell<Terv>>;
+// pub type TervContext = Rc<RefCell<Terv>>;
+
+#[derive(PartialEq, Clone, Debug)]
+pub struct AppData {
+    pub terv: RefCell<Terv>,
+    pub old_terv: RefCell<Terv>,
+}
+
+impl AppData {
+    pub fn new() -> Self {
+        let terv = Terv::new();
+        Self {
+            old_terv: RefCell::new(terv.clone()),
+            terv: RefCell::new(terv),
+        }
+    }
+}
+
+pub type AppContext = Rc<AppData>;
 
 fn get_shopping_days(vasar: &HashMap<Time, HashMap<String, bool>>, ingredient: &str) -> Vec<Time> {
     let mut res = Vec::new();

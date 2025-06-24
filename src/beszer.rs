@@ -18,8 +18,14 @@ pub struct BeszerLista {
     pub items: Vec<Item>,
 }
 
-#[derive(PartialEq, Clone, Debug, Eq, Hash)]
+#[derive(PartialEq, Clone, Debug, Eq, Hash, Default)]
 pub struct BeszerListak(pub Vec<BeszerLista>);
+
+impl BeszerListak {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+}
 
 impl Deref for BeszerListak {
     type Target = Vec<BeszerLista>;

@@ -3,7 +3,7 @@ use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
 //use crate::meal::display::{MealMsg, MealPage};
-use crate::terv::TervContext;
+use crate::terv::AppContext;
 use crate::terv::display::TervProps;
 use crate::backend::keyboard::TableFocusNavigator;
 
@@ -26,23 +26,23 @@ impl Component for ShopPage {
     type Properties = TervProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
         ShopPage {
             focus_nav: TableFocusNavigator::new(terv.shoppingdays.len(), 2),
         }
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
         self.focus_nav.build(terv.shoppingdays.len(), 2);
         true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
         match msg {
             ShopMsg::Add => {
                 terv.shoppingdays.push(Shopping::new());
@@ -70,12 +70,11 @@ impl Component for ShopPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = link.context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
 
         html! {
             <div class="shop" >
-                <button onclick={link.callback(move |_| ShopMsg::Add)}>{ "Add" }</button>
                 <table>
                     <tr>
                         <th>{ "Name" }</th>
@@ -101,6 +100,7 @@ impl Component for ShopPage {
                         }
                     })}
                 </table>
+                <button onclick={link.callback(move |_| ShopMsg::Add)}>{ "Add Shopping" }</button>
             </div>
         }
     }

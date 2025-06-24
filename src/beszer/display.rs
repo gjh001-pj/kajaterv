@@ -3,7 +3,7 @@ use web_sys::HtmlInputElement;
 use std::collections::HashMap;
 
 
-use crate::terv::TervContext;
+use crate::terv::AppContext;
 use crate::shop::{Shopping, ShopDay, Shoppings};
 use crate::backend::matrix::{Sub, Subs};
 use crate::terv::display::TervProps;
@@ -25,8 +25,8 @@ impl Component for BeszerPage {
     type Properties = TervProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
         
         BeszerPage {
             error: terv.make_beszerek(),
@@ -35,8 +35,8 @@ impl Component for BeszerPage {
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
 
         self.error = terv.make_beszerek();
         if terv.beszerek.len() > 0 {
@@ -49,8 +49,8 @@ impl Component for BeszerPage {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
         match msg {
             BeszerMsg::Calculate => {
                 terv.make_beszerek();
@@ -68,8 +68,8 @@ impl Component for BeszerPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = link.context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
         let shoppingdays = terv.shoppingdays.clone();
 
         let select_beszer = link.callback(|e: Event| {

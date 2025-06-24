@@ -2,7 +2,7 @@ use yew::prelude::*;
 use web_sys::HtmlInputElement;
 
 use crate::backend::keyboard::TableFocusNavigator;
-use crate::terv::TervContext;
+use crate::terv::AppContext;
 use crate::terv::display::TervProps;
 
 use super::*;
@@ -29,8 +29,8 @@ impl Component for ConvertPage {
     type Properties = TervProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
 
         ConvertPage {
             focus_nav: TableFocusNavigator::new(terv.convs.len(), 3),
@@ -38,15 +38,15 @@ impl Component for ConvertPage {
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
         self.focus_nav.build(terv.convs.len(), 3);
         true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
         match msg {
             ConvertMsg::AddConvert => {
                 terv.convs.push(Conversation::new());
@@ -86,8 +86,8 @@ impl Component for ConvertPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = link.context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = link.context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
 
         html! {
             <div class="meals">

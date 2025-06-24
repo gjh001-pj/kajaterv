@@ -3,7 +3,8 @@ use yew::virtual_dom::VNode;
 use web_sys::HtmlInputElement;
 use gloo::console::log;
 
-use crate::terv::{Terv, TervContext};
+use crate::beszer::display::round;
+use crate::terv::{Terv, AppContext};
 use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::display::TervProps;
 use crate::convert::Convert;
@@ -55,8 +56,9 @@ impl Component for RecipePage {
     type Properties = TervProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
+
         let mut focus_nav = TableFocusNavigator::new(0, 3);
         if let Some(recipe) = terv.recipes.get(0) {
             focus_nav.build(recipe.ingredients.len(), 3);
@@ -68,8 +70,8 @@ impl Component for RecipePage {
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
 
         if let Some(recipe) = terv.recipes.get(0) {
             self.focus_nav.build(recipe.ingredients.len(), 3);
@@ -78,8 +80,8 @@ impl Component for RecipePage {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let mut terv = terv.borrow_mut();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let mut terv = app_data.terv.borrow_mut();
 
         match msg {
             RecipeMsg::AddRecipe => {
@@ -159,13 +161,18 @@ impl Component for RecipePage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
-        let terv = ctx.link().context::<TervContext>(Callback::noop()).unwrap().0;
-        let terv = terv.borrow();
+        let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
+        let terv = app_data.terv.borrow();
 
         let mut osszetevo_name_list: Vec<VNode> = Vec::new();
         if let Some(recipe_index) = self.current_recipe {
             if let Some(recipe) = terv.recipes.get(recipe_index) {
-                let all_osszetevo_name_list: Vec<&String> = terv.osszetevok.iter().map(|ossz| &ossz.name).collect();
+                let mut all_osszetevo_name_list: Vec<&String> = terv.osszetevok.iter().map(|ossz| &ossz.name).collect();
+                terv.recipes.iter().for_each(|recipe| {
+                    recipe.ingredients.iter().for_each(|ingredient| all_osszetevo_name_list.push(&ingredient.name))
+                });
+                all_osszetevo_name_list.sort();
+                all_osszetevo_name_list.dedup();
                 osszetevo_name_list = all_osszetevo_name_list.iter().map(|&rec_ossz| {
                     if !recipe.ingredients.iter().map(|x| &x.name).collect::<Vec<&String>>().contains(&rec_ossz) {
                         html! {<option value={rec_ossz.clone()} />}
@@ -175,23 +182,31 @@ impl Component for RecipePage {
                 }).collect();
             }
         }
+
+        let recipe_list: Vec<_> = terv.recipes.iter().map(|value| {
+            html! {<option value={value.name.clone()} >{ value.name.clone() }</option>}
+        }).collect();
         
         html! {
             <div class="recipes">
                 <div class="toolbar">
                     <button onclick={link.callback(|_| RecipeMsg::AddRecipe)}>{ "Add recipe" }</button>
                     //<label for="recipe_search">{ "Kerressen rá egy receptre" }</label>
-                    <input type="text" list="recipe_list" id="recipe_search" name="recipe_search" onchange={
-                        link.callback(move |e: Event| {
+                    <input type="text" list="recipe_list" id="recipe_search" name="recipe_search" oninput={
+                        link.callback(move |e: InputEvent| {
                         let input: HtmlInputElement = e.target_unchecked_into();
                         RecipeMsg::SearchRecipe(input.value())})} />
                     <datalist id="recipe_list">
-                        { for terv.recipes.iter().map(|value| {
-                            html! {<option value={value.name.clone()} />}
-                        })}
+                        { recipe_list.clone() }
                     </datalist>
+                    <select list="recipe_list" onchange={
+                            link.callback(move |e: Event| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            RecipeMsg::SearchRecipe(input.value())})} >
+                            { recipe_list }
+                    </select>
                     <datalist id="osszetevo_name_list">
-                        { for osszetevo_name_list }
+                        { osszetevo_name_list }
                     </datalist>
                     <p>{ format!("Kiválasztott recept: {}", match self.current_recipe {
                         Some(index) => {terv.recipes.get(index).unwrap().name.clone()},
@@ -210,13 +225,16 @@ impl Component for RecipePage {
                                 </tr>
                                 <tr>
                                     <th>{ "Létszám:" }</th>
-                                    <th><input type="number" min="0" step="1" value={recipe.number.to_string()} 
+                                    <th><input type="number" min="0" step="1" value={if recipe.number != 0 {recipe.number.to_string()} else {"".to_string()}} 
                                         onchange={link.callback(move |e: Event| {
                                         let input: HtmlInputElement = e.target_unchecked_into();
                                         RecipeMsg::UpdateNumber(input.value())})} /></th>
+                                    if recipe.number == 0 {
+                                        <td class="warn">{ "A létszám nulla" }</td>
+                                    }
                                 </tr>
                                 <tr>
-                                    <th>{ "Összetevő" }</th><th>{ "Mennyiség" }</th><th>{ "Mértékegység" }</th>
+                                    <th>{ "Összetevő" }</th><th>{ "Mennyiség" }</th><th>{ "Mértékegység" }</th><th>{ "/fő" }</th>
                                 </tr>
                                 { for recipe.ingredients.iter().enumerate().map(|(index, value)| {
                                     let update_name = link.callback(move |e: Event| {
@@ -248,19 +266,26 @@ impl Component for RecipePage {
                                         <tr>
                                             <td><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name}
                                                 onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></td>
-                                            <td><input type="number" step="any" value={value.quantity.to_string()} onchange={update_quantity}
+                                            <td><input type="number" step="any" value={if value.quantity != 0.0 {value.quantity.to_string()} else {"".to_string()}} onchange={update_quantity}
                                                 onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></td>
                                             <td><input type="text" value={value.unit.clone()} onchange={update_unit}
                                                 onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></td>
+                                            <td>{ format!("{} {}", round(value.quantity / recipe.number as f64, 3), value.unit) }</td>
                                             <td><button onclick={link.callback(move |_| RecipeMsg::RemoveIngredient(index))}>{ "Remove" }</button></td>
                                             {match osszetevo {
                                                 None => html!{<td class="err">{ "Az összetevő nem található" }</td>},
                                                 Some(osszetevo) => {
                                                     if let None = value.convert(&osszetevo.unit, &terv.convs) {
-                                                        html!{<td class="err">{ format!("{} nem váltható át {}-ra/re", value.unit, osszetevo.unit) }</td>}
+                                                        html!{<td class="err">{ format!("'{}' nem váltható át '{}'-ra/re", value.unit, osszetevo.unit) }</td>}
                                                     } else {html!{}}
                                                 },
                                             } }
+                                            if value.quantity == 0.0 {
+                                                <td class="warn">{ "A mennyiség nulla" }</td>
+                                            }
+                                            if value.unit == "" {
+                                                <td class="warn">{ "Nincs mértékegység" }</td>
+                                            }
                                         </tr>
                                     }
                                 })}
