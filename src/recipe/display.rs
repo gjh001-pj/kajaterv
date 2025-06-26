@@ -216,6 +216,7 @@ impl Component for RecipePage {
                 <div class="current_recipe">
                     if let Some(recipe_index) = self.current_recipe {
                         if let Some(recipe) = terv.recipes.get(recipe_index) {
+                            <button onclick={link.callback(move |_| RecipeMsg::RemoveRecipe)}>{ "Remove Recipe" }</button>
                             <table>
                                 <tr>
                                     <th>{ "Név:" }</th>
@@ -290,7 +291,6 @@ impl Component for RecipePage {
                                     }
                                 })}
                                 <button onclick={link.callback(move |_| RecipeMsg::AddIngredient)}>{ "Add Ingredient" }</button>
-                                <button onclick={link.callback(move |_| RecipeMsg::RemoveRecipe)}>{ "Remove Recipe" }</button>
                             </table>
                     }}
                 </div>

@@ -51,6 +51,12 @@ impl ShopDay {
     }
 }
 
+impl Default for ShopDay {
+    fn default() -> Self {
+        Self::Name(String::new())
+    }
+}
+
 impl From<&str> for ShopDay {
     fn from(s: &str) -> Self {
         if let Ok(day) = s.parse() {

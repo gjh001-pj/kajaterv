@@ -1,10 +1,11 @@
 use std::ops::{Deref, DerefMut};
 use crate::shop::ShopDay;
+use crate::backend::paste::PasteCell;
 
 
 pub mod display;
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, Default)]
 pub struct Osszetevo {
     pub name: String,
     pub unit: String,
@@ -21,6 +22,40 @@ impl Osszetevo {
             time: ShopDay::Name(String::new()),
             unit_price: 0.0,
         }
+    }
+
+    pub fn set_name(&mut self, name: &str) {
+        self.name = String::from(name);
+    }
+
+    pub fn set_unit(&mut self, unit: &str) {
+        self.unit = String::from(unit);
+    }
+
+    pub fn set_time(&mut self, time: &str) {
+        if let Ok(time) = time.parse() {
+            self.time = ShopDay::Day(time);
+        } else {
+            self.time = ShopDay::Name(String::from(time))
+        }
+    }
+
+    pub fn set_unit_price(&mut self, unit_price: &str) {
+        if let Ok(unit_price) = unit_price.parse() {
+            self.unit_price = unit_price;
+        }
+    }
+}
+
+impl PasteCell for Osszetevo {
+    fn paste(&mut self, cell: &str, index: usize) {
+        match index {
+            0 => self.set_name(cell),
+            1 => self.set_unit(cell),
+            2 => self.set_time(cell),
+            3 => self.set_unit_price(cell),
+            _ => (),
+        };
     }
 }
 
@@ -76,6 +111,46 @@ impl Osszetevok {
             return self.by_name_mut(name);
         } else {
             return self.by_name_def_mut();
+        }
+    }
+
+    pub fn add(&mut self, osszetevo: Osszetevo) {
+        self.0.push(osszetevo);
+    }
+
+    pub fn add_new(&mut self) {
+        self.add(Osszetevo::new());
+    }
+
+    pub fn remove(&mut self, index: usize) {
+        self.0.remove(index);
+    }
+
+    pub fn set_name(&mut self, name: &str, index: usize) {
+        if let Some(ossz) = self.0.get_mut(index) {
+            ossz.name = String::from(name);
+        }
+    }
+
+    pub fn set_unit(&mut self, unit: &str, index: usize) {
+        if let Some(ossz) = self.0.get_mut(index) {
+            ossz.unit = String::from(unit);
+        }
+    }
+
+    pub fn set_time(&mut self, time: &str, index: usize) {
+        if let Some(imput) = self.0.get_mut(index) {
+            if let Ok(time) = time.parse() {
+                imput.time = ShopDay::Day(time);
+            }
+        }
+    }
+
+    pub fn set_unit_price(&mut self, unit_price: &str, index: usize) {
+        if let Some(imput) = self.0.get_mut(index) {
+            if let Ok(unit_price) = unit_price.parse() {
+                imput.unit_price = unit_price;
+            }
         }
     }
 }
