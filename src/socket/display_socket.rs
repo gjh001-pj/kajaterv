@@ -83,7 +83,8 @@ impl Component for Socket {
         match msg {
             SocketMsg::ReceivedData(data) => {
                 data.convert_data(&mut terv);
-                data.convert_data(&mut old_terv);
+                *old_terv = terv.clone();
+                //data.convert_data(&mut old_terv);
                 //ctx.props().on_data_received.emit(());
                 ctx.link().send_message(SocketMsg::TriggerRedraw);
                 log!("egyenlő: ", *terv == *old_terv);

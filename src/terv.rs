@@ -12,7 +12,7 @@ use crate::meal::{Meal, Meals};
 use crate::backend::matrix::{Matrix, Subs, Sub};
 use crate::shop::{Shoppings, Shopping, ShopDay};
 use crate::backend::time::Time;
-use crate::beszer::display::{format_quantities, format_prices};
+use crate::beszer::display::{format_quantities, format_prices, format_quantities2};
 
 pub mod display;
 
@@ -95,6 +95,7 @@ impl Terv {
                     &sub.recipe
                 })
             }).flatten().collect();
+            recipes.sort();
             recipes.dedup();
 
             let format_recipes = recipes.iter().enumerate().map(|(index, recipe)| {
@@ -105,12 +106,14 @@ impl Terv {
                 let osszetevo = self.osszetevok.by_name(osszetevo_name).unwrap();
                 
                 let name = format!("{} ({:.2})", osszetevo_name, osszetevo.unit_price);
+                //let name = format!("{}", osszetevo_name);
                 
                 let recipes = subs.iter().map(|sub| {
                     format!("{} ({})", recipes.iter().position(|&recipe| *recipe == sub.recipe).unwrap() + 1, sub.number)
                 }).collect::<Vec<String>>().join(", ");
                 
                 let quantities = format_quantities(subs, &osszetevo.unit);
+                //let quantities = format_quantities2(subs, &osszetevo.unit);
 
                 let prices = format_prices(subs);
 

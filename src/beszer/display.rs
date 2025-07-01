@@ -184,6 +184,11 @@ pub fn format_quantities(subs: &Subs, unit: &str) -> String {
     }
 }
 
+pub fn format_quantities2(subs: &Subs, unit: &str) -> String {
+    let sum: f64 = subs.iter().map(|sub| sub.quantity).sum();
+    format!("{} {}", sum.roundd(3), unit)
+}
+
 pub fn format_prices(subs: &Subs) -> String {
     let fprice = |price: f64, number: u32| format!("{} ({})", price.roundd(2), (price / number as f64).roundd(2));
     let sum = fprice(
