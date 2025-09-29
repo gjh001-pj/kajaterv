@@ -1,19 +1,24 @@
 
+use core::num;
 use std::ops::{Deref, DerefMut};
+use crate::{backend::paste::PasteCell, ew::{EWs, GetEWs, EW}, recipe::subrecipe::SubRecipes};
+use crate::create_vec_wrapper;
 
 //use crate::osszetevok::Osszetevo;
 
 
 pub mod ingredient;
+pub mod subrecipe;
 pub mod display;
 
-use ingredient::Ingredient;
+use ingredient::{Ingredient, Ingredients};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Recipe {
     pub name: String,
     pub number: u32,
-    pub ingredients: Vec<Ingredient>,
+    pub ingredients: Ingredients,
+    pub sub_recipes: SubRecipes,
 }
 
 impl Recipe {
@@ -21,13 +26,51 @@ impl Recipe {
         Recipe {
             name: String::new(),
             number: 0,
-            ingredients: Vec::new(),
+            ingredients: Ingredients::default(),
+            sub_recipes: SubRecipes::default(),
         }
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
+    pub fn set_number(&mut self, number: u32) {
+        self.number = number;
+    }
+
+    pub fn set_ingredients(&mut self, ingredients: Ingredients) {
+        self.ingredients = ingredients;
     }
 }
 
-#[derive(PartialEq, Clone, Debug)]
-pub struct Recipes(pub Vec<Recipe>);
+impl GetEWs for Recipe {
+    fn get_errors(&self, terv: &crate::terv::Terv) -> EWs<crate::ew::Err> {
+        let mut errors = self.ingredients.get_errors(terv);
+
+        if self.name == "" {
+            errors.push(EW::from("Nincs név"));
+        }
+
+        errors
+    }
+
+    fn get_warnings(&self, terv: &crate::terv::Terv) -> EWs<crate::ew::Warn> {
+        let mut warnings = self.ingredients.get_warnings(terv);
+
+        if self.number == 0 {
+            warnings.push(EW::from("A létszám nulla"));
+        }
+
+        warnings
+    }
+
+    fn get_from(&self) -> String {
+        self.name.clone()
+    }
+}
+
+create_vec_wrapper!(Recipes, Recipe);
 
 impl Recipes {
     pub fn new() -> Self {
@@ -53,16 +96,36 @@ impl Recipes {
     }
 }
 
-impl Deref for Recipes {
-    type Target = Vec<Recipe>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl GetEWs for Recipes {
+    fn get_errors(&self, terv: &crate::terv::Terv) -> EWs<crate::ew::Err> {
+        self.iter().filter_map(|recipe| {
+            let ews = recipe.get_errors(terv);
+            if ews.len() == 0 {
+                None
+            } else {
+                Some(EW::Child { 
+                    from: recipe.name.clone(), 
+                    ews, 
+                })
+            }
+        }).collect::<Vec<_>>().into()
     }
-}
 
-impl DerefMut for Recipes {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    fn get_warnings(&self, terv: &crate::terv::Terv) -> EWs<crate::ew::Warn> {
+        self.iter().filter_map(|recipe| {
+            let ews = recipe.get_warnings(terv);
+            if ews.len() == 0 {
+                None
+            } else {
+                Some(EW::Child { 
+                    from: recipe.name.clone(), 
+                    ews, 
+                })
+            }
+        }).collect::<Vec<_>>().into()
+    }
+
+    fn get_from(&self) -> String {
+        String::new()
     }
 }

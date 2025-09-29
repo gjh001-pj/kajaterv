@@ -1,6 +1,9 @@
 use std::ops::{Deref, DerefMut};
+use crate::backend::time::Time;
 use crate::shop::ShopDay;
 use crate::backend::paste::PasteCell;
+use crate::create_vec_wrapper;
+use crate::ew::{EWs, GetEWs, EW};
 
 
 pub mod display;
@@ -24,15 +27,15 @@ impl Osszetevo {
         }
     }
 
-    pub fn set_name(&mut self, name: &str) {
-        self.name = String::from(name);
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 
-    pub fn set_unit(&mut self, unit: &str) {
-        self.unit = String::from(unit);
+    pub fn set_unit(&mut self, unit: String) {
+        self.unit = unit;
     }
 
-    pub fn set_time(&mut self, time: &str) {
+    pub fn time_from_str(&mut self, time: &str) {
         if let Ok(time) = time.parse() {
             self.time = ShopDay::Day(time);
         } else {
@@ -40,27 +43,53 @@ impl Osszetevo {
         }
     }
 
-    pub fn set_unit_price(&mut self, unit_price: &str) {
+    pub fn unit_price_from_str(&mut self, unit_price: &str) {
         if let Ok(unit_price) = unit_price.parse() {
             self.unit_price = unit_price;
         }
     }
 }
 
+impl GetEWs for Osszetevo {
+    fn get_errors(&self, _terv: &crate::terv::Terv) -> crate::ew::EWs<crate::ew::Err> {
+        let mut errs = Vec::new();
+        if self.name == "" {
+            errs.push(EW::from("Nincs neve az összetevőnek."));
+        }
+        if self.unit == "" {
+            errs.push(EW::from("Nincs megadva mértékegység."));
+        }
+        errs.into()
+    }
+    fn get_warnings(&self, _terv: &crate::terv::Terv) -> EWs<crate::ew::Warn> {
+        let mut warns = Vec::new();
+        if self.time == ShopDay::default() {
+            warns.push(EW::from("Nem lett beállítva idő."))
+        }
+        if self.unit_price == 0.0 {
+            warns.push(EW::from("Nem lett beállítva egységár."))
+        }
+        warns.into()
+    }
+
+    fn get_from(&self) -> String {
+        self.name.clone()
+    }
+}
+
 impl PasteCell for Osszetevo {
     fn paste(&mut self, cell: &str, index: usize) {
         match index {
-            0 => self.set_name(cell),
-            1 => self.set_unit(cell),
-            2 => self.set_time(cell),
-            3 => self.set_unit_price(cell),
+            0 => self.set_name(cell.to_string()),
+            1 => self.set_unit(cell.to_string()),
+            2 => self.time_from_str(cell),
+            3 => self.unit_price_from_str(cell),
             _ => (),
         };
     }
 }
 
-#[derive(PartialEq, Clone, Debug)]
-pub struct Osszetevok(pub Vec<Osszetevo>);
+create_vec_wrapper!(Osszetevok, Osszetevo, GetEWs);
 
 impl Osszetevok {
     pub fn exist(&self, name: &str) -> bool {
@@ -122,9 +151,9 @@ impl Osszetevok {
         self.add(Osszetevo::new());
     }
 
-    pub fn remove(&mut self, index: usize) {
-        self.0.remove(index);
-    }
+    // pub fn remove(&mut self, index: usize) {
+    //     self.0.remove(index);
+    // }
 
     pub fn set_name(&mut self, name: &str, index: usize) {
         if let Some(ossz) = self.0.get_mut(index) {
@@ -155,16 +184,33 @@ impl Osszetevok {
     }
 }
 
-impl Deref for Osszetevok {
-    type Target = Vec<Osszetevo>;
+// impl GetEWs for Osszetevok {
+//     fn get_errors(&self, terv: &crate::terv::Terv) -> EWs<crate::ew::Err> {
+//         self.iter().filter_map(|osszetevo| {
+//             let ews = osszetevo.get_errors(terv);
+//             if ews.len() == 0 {
+//                 None
+//             } else {
+//                 Some(EW::Child { 
+//                     from: osszetevo.name.clone(), 
+//                     ews, 
+//                 })
+//             }
+//         }).collect::<Vec<_>>().into()
+//     }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+//     fn get_warnings(&self, terv: &crate::terv::Terv) -> EWs<crate::ew::Warn> {
+//         self.iter().filter_map(|osszetevo| {
+//             let ews = osszetevo.get_warnings(terv);
+//             if ews.len() == 0 {
+//                 None
+//             } else {
+//                 Some(EW::Child { 
+//                     from: osszetevo.name.clone(), 
+//                     ews, 
+//                 })
+//             }
+//         }).collect::<Vec<_>>().into()
+//     }
+// }
 
-impl DerefMut for Osszetevok {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}

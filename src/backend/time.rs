@@ -15,9 +15,9 @@ pub struct Time {
 }
 
 impl Time {
-    pub fn new() -> Self {
+    pub fn new(day: i32, hour: i32, min: i32) -> Self {
         Self {
-            mins: 0
+            mins: day * DAY + hour * HOUR + min * MIN,
         }
     }
 }
@@ -59,9 +59,7 @@ impl FromStr for Time {
             return Err("Minute must be between 0 and 59".to_string());
         }
 
-        Ok(Time {
-            mins: day * DAY + hour * HOUR + min * MIN
-        })
+        Ok(Time::new(day, hour, min))
     }
 }
 

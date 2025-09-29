@@ -8,11 +8,14 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{MessageEvent, Window, ClipboardEvent};
 use wasm_bindgen::closure::Closure;
 
+use crate::backend::defwin::{handle_default_msg, DefWinMsg};
 use crate::terv::AppContext;
 use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::display::TervProps;
 use crate::backend::time::Time;
 use crate::backend::paste::handle_paste;
+use crate::win_comp_def;
+use crate::input_with_defs;
 
 use super::*;
 
@@ -35,6 +38,7 @@ pub enum OsszetevoMsg {
     MouseClick,
     HandlePaste(String, usize, usize),
     DoNothing,
+    DefWinBeh(DefWinMsg),
 }
 
 impl Component for OsszetevoPage {
@@ -89,20 +93,23 @@ impl Component for OsszetevoPage {
                 terv.osszetevok.set_unit_price(&unit_price, index);
                 true
             },
-            OsszetevoMsg::KeyPressed(row, col, e) => {
-                self.focus_nav.handle_key(row, col, e);
-                false
-            },
-            OsszetevoMsg::MouseClick => {
-                self.focus_nav.set_edit();
-                false
-            },
-            OsszetevoMsg::HandlePaste(text, row_index, column_index) => {
-                log!("row:", row_index, "col:", column_index, "text:", &text);
-                handle_paste(&text, row_index, column_index, &mut terv.osszetevok, &mut self.focus_nav);
-                true
-            },
+            // OsszetevoMsg::KeyPressed(row, col, e) => {
+            //     self.focus_nav.handle_key(row, col, e);
+            //     false
+            // },
+            // OsszetevoMsg::MouseClick => {
+            //     self.focus_nav.set_edit();
+            //     false
+            // },
+            // OsszetevoMsg::HandlePaste(text, row_index, column_index) => {
+            //     log!("row:", row_index, "col:", column_index, "text:", &text);
+            //     handle_paste(&text, row_index, column_index, &mut terv.osszetevok, &mut self.focus_nav);
+            //     true
+            // },
             OsszetevoMsg::DoNothing => false,
+            OsszetevoMsg::DefWinBeh(dwm) => {
+                handle_default_msg(dwm, &mut self.focus_nav, ctx, &mut terv.osszetevok)
+            }
             _ => {false}
         }
     }
@@ -128,39 +135,51 @@ impl Component for OsszetevoPage {
             }
         });
 
-        let onpaste = |row, col| link.callback(move |e: Event| {
-            // let clipboard_event = e.dyn_ref::<ClipboardEvent>().unwrap();
-            // let data_transfer = clipboard_event.clipboard_data().unwrap();
-            // let text = data_transfer.get_data("text").unwrap();
-            // return OsszetevoMsg::HandlePaste(text, row, col);
+        //let onpaste = |row, col| link.callback(move |e: Event| OsszetevoMsg::DefWinBeh(DefWinMsg::HandlePaste(row, col, e)));
 
-            if let Some(clipboard_event) = e.dyn_ref::<ClipboardEvent>() {
-                if let Some(data_transfer) = clipboard_event.clipboard_data() {
-                    match data_transfer.get_data("text") {
-                        Ok(text) => {
-                            if text == "" { OsszetevoMsg::DoNothing } 
-                            else if !text.contains("\n") && !text.contains("\t") {
-                                OsszetevoMsg::DoNothing
-                            } else {
-                                e.prevent_default();
-                                OsszetevoMsg::HandlePaste(text, row, col)
-                            }
-                        }
-                        Err(err) => {
-                            log!("Failed to retrieve pasted text: {}", err.as_string().unwrap_or_else(|| "Unknown error".to_string()));
-                            OsszetevoMsg::DoNothing
-                        }
-                    }
-                } else {
-                    log!("Clipboard data is unavailable.");
-                    OsszetevoMsg::DoNothing
-                }
-            } else {
-                log!("Event is not a ClipboardEvent.");
-                OsszetevoMsg::DoNothing
-            }
-        });
+        // let onpaste = |row, col| link.callback(move |e: Event| {
+        //     // let clipboard_event = e.dyn_ref::<ClipboardEvent>().unwrap();
+        //     // let data_transfer = clipboard_event.clipboard_data().unwrap();
+        //     // let text = data_transfer.get_data("text").unwrap();
+        //     // return OsszetevoMsg::HandlePaste(text, row, col);
+//
+        //     if let Some(clipboard_event) = e.dyn_ref::<ClipboardEvent>() {
+        //         if let Some(data_transfer) = clipboard_event.clipboard_data() {
+        //             match data_transfer.get_data("text") {
+        //                 Ok(text) => {
+        //                     if text == "" { OsszetevoMsg::DoNothing } 
+        //                     else if !text.contains("\n") && !text.contains("\t") {
+        //                         OsszetevoMsg::DoNothing
+        //                     } else {
+        //                         e.prevent_default();
+        //                         OsszetevoMsg::HandlePaste(text, row, col)
+        //                     }
+        //                 }
+        //                 Err(err) => {
+        //                     log!("Failed to retrieve pasted text: {}", err.as_string().unwrap_or_else(|| "Unknown error".to_string()));
+        //                     OsszetevoMsg::DoNothing
+        //                 }
+        //             }
+        //         } else {
+        //             log!("Clipboard data is unavailable.");
+        //             OsszetevoMsg::DoNothing
+        //         }
+        //     } else {
+        //         log!("Event is not a ClipboardEvent.");
+        //         OsszetevoMsg::DoNothing
+        //     }
+        // });
         
+        let onpaste = |row, col| link.callback(move |e: Event| 
+            OsszetevoMsg::DefWinBeh(DefWinMsg::HandlePaste(row, col, e)
+        ));
+        let onkeydown = |row, col| link.callback(move |e: KeyboardEvent| {
+            OsszetevoMsg::DefWinBeh(DefWinMsg::KeyPressed(row, col, e))
+        });
+        let onclick = link.callback(move |_| {
+            OsszetevoMsg::DefWinBeh(DefWinMsg::MouseClick)
+        });
+
         html! {
             <div class="osszetevok">
                 <div class="table">
@@ -192,24 +211,18 @@ impl Component for OsszetevoPage {
                                 OsszetevoMsg::UpdateUnitPrice(index, input.value())
                             });
 
-                            let onkeydown = |col| link.callback(move |e: KeyboardEvent| {
-                                OsszetevoMsg::KeyPressed(index, col, e)
-                            });
-
-                            let onclick = link.callback(move |_| {
-                                OsszetevoMsg::MouseClick
-                            });
-
                             html! {
                                 <tr>
-                                    <td><input type="text" list="osszetevo_name_list" value={value.name.clone()} onchange={update_name} 
-                                        onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 0).clone()} /></td>
+                                    <td><input type="text" list="osszetevo_name_list" value={value.name.clone()} 
+                                            onchange={update_name} 
+                                            onkeydown={onkeydown(index, 0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 0).clone()}
+                                         /></td>
                                     <td><input type="text" value={value.unit.clone()} onchange={update_unit} 
-                                        onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 1).clone()} /></td>
+                                        onkeydown={onkeydown(index, 1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 1).clone()} /></td>
                                     <td><input value={value.time.to_string()} onchange={update_time} 
-                                        onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 2).clone()} /></td>
+                                        onkeydown={onkeydown(index, 2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 2).clone()} /></td>
                                     <td><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} 
-                                        onkeydown={onkeydown(3)} ref={self.focus_nav.refs[index][3].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 3).clone()} /></td>
+                                        onkeydown={onkeydown(index, 3)} ref={self.focus_nav.refs[index][3].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 3).clone()} /></td>
                                     <td><button onclick={link.callback(move |_| OsszetevoMsg::Remove(index))}>{ "Remove" }</button></td>
                                     if index != 0 && value.name != "" && terv.osszetevok.get(0..index).unwrap().iter().filter(|&osszetevo| osszetevo.name == value.name).next() != None {
                                         <p class="warn">{ format!("{} már létezik", value.name) }</p>

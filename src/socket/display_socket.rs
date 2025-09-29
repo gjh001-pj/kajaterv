@@ -13,11 +13,13 @@ use crate::terv::display::TervMsg;
 use crate::terv::AppContext;
 use super::data::Data;
 use super::data::com;
+use super::send_message;
 use crate::terv::Terv;
 use crate::terv::display::save_if;
+use super::Message;
 
 pub struct Socket {
-    listener: Option<EventListener>,
+    //listener: Option<EventListener>,
 }
 
 // #[derive(Properties, PartialEq)]
@@ -50,29 +52,29 @@ impl Component for Socket {
         let window = web_sys::window().unwrap();
         let link = ctx.link().clone();
 
-        let listener = EventListener::new(&window, "message", move |event| {
-            let event: MessageEvent = event.dyn_ref::<MessageEvent>().unwrap().clone();
-            let message = event.data();
+        // let listener = EventListener::new(&window, "message", move |event| {
+        //     let event: MessageEvent = event.dyn_ref::<MessageEvent>().unwrap().clone();
+        //     let message = event.data();
 
-            //log!("sent data from javascript: ", message.as_string().unwrap());
+        //     //log!("sent data from javascript: ", message.as_string().unwrap());
 
-            let parsed = JSON::parse(&message.as_string().unwrap()).unwrap();
+        //     let parsed = JSON::parse(&message.as_string().unwrap()).unwrap();
 
-            if let Ok(data) = serde_wasm_bindgen::from_value::<Data>(parsed) {
-                //log!("data to load: ", serde_json::to_string(&data).unwrap());
-                link.send_message(SocketMsg::ReceivedData(data));
-                return;
-            }
+        //     if let Ok(data) = serde_wasm_bindgen::from_value::<Data>(parsed) {
+        //         //log!("data to load: ", serde_json::to_string(&data).unwrap());
+        //         link.send_message(SocketMsg::ReceivedData(data));
+        //         return;
+        //     }
 
-            if let Some(msg) = message.as_string() {
-                log!("received message: ", msg);
-            }
-        });
+        //     if let Some(msg) = message.as_string() {
+        //         log!("received message: ", msg);
+        //     }
+        // });
 
         ctx.link().send_message(SocketMsg::RequestData);
 
         Self {
-            listener: Some(listener)
+            //listener: Some(listener)
         }
     }
 
@@ -94,13 +96,15 @@ impl Component for Socket {
                 save_if(&mut terv, &mut old_terv)
             },
             SocketMsg::RequestData => {
-                let mut data = Data::new();
-                data.command = com::SEND | com::ALL;
-                if let Some(window) = web_sys::window() {
-                    let json_data = serde_json::to_string(&data).unwrap();
-                    let _ = window.parent().unwrap().unwrap()
-                        .post_message(&JsValue::from_str(&json_data), "*");
-                }
+                super::request_data();
+
+                // let mut data = Data::new();
+                // data.command = com::SEND | com::ALL;
+                // if let Some(window) = web_sys::window() {
+                //     let json_data = serde_json::to_string(&data).unwrap();
+                //     let _ = window.parent().unwrap().unwrap()
+                //         .post_message(&JsValue::from_str(&json_data), "*");
+                // }
                 false
             },
             SocketMsg::TriggerRedraw => {
@@ -126,17 +130,17 @@ impl Component for Socket {
     }
 }
 
-pub fn send_data(terv: &mut Terv, old_terv: &mut Terv) {
-    let mut data = Data::new();
-    terv.pure();
-    *old_terv = terv.clone();
-    terv.make_beszerek();
-    data.convert_string(terv, com::ALL);
-    if let Some(window) = web_sys::window() {
-        let json_data = serde_json::to_string(&data).unwrap();
-        //log!("data from rust:", data.command, "json_data", &json_data);
-        let _ = window.parent().unwrap().unwrap()
-            .post_message(&JsValue::from_str(&json_data), "*");
-    }
-}
+// pub fn send_data(terv: &mut Terv, old_terv: &mut Terv) {
+//     let mut data = Data::new();
+//     terv.pure();
+//     *old_terv = terv.clone();
+//     terv.make_beszerek();
+//     data.convert_string(terv, com::ALL);
+//     if let Some(window) = web_sys::window() {
+//         let json_data = serde_json::to_string(&data).unwrap();
+//         //log!("data from rust:", data.command, "json_data", &json_data);
+//         let _ = window.parent().unwrap().unwrap()
+//             .post_message(&JsValue::from_str(&json_data), "*");
+//     }
+// }
 

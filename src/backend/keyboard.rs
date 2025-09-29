@@ -97,7 +97,7 @@ impl TableFocusNavigator {
             "Enter" => {
                 self.mode = EditMode::Edit; return
             },
-            _ => return,
+            _ => self.set_edit(),
         }
 
         if let Some(input) = self.refs[new_row][new_col].cast::<HtmlInputElement>() {

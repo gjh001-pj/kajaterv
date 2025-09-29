@@ -1,9 +1,11 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
+use gloo::console::log;
 
 use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::AppContext;
 use crate::terv::display::TervProps;
+use crate::backend::paste::handle_paste;
 
 use super::*;
 
@@ -22,6 +24,8 @@ pub enum MealMsg {
     RemoveMeal(usize),
     KeyPressed(usize, usize, KeyboardEvent),
     MouseClick,
+    HandlePaste(String, usize, usize),
+    DoNothing,
 }
 
 impl Component for MealPage {
@@ -50,25 +54,25 @@ impl Component for MealPage {
 
         match msg {
             MealMsg::AddMeal => {
-                terv.meals.push(Meal::new());
+                terv.meals.push(Meal::default());
                 self.focus_nav.build(terv.meals.len(), 3);
                 true
             },
             MealMsg::UpdateRecipe(index, recipe) => {
-                terv.meals.get_mut(index).unwrap().recipe = recipe;
+                terv.meals.get_mut(index).unwrap().as_common_mut().recipe = recipe;
                 true
             },
             MealMsg::UpdateNumber(index, number) => {
                 if let Ok(number) = number.parse() {
-                    terv.meals.get_mut(index).unwrap().number = number;
+                    terv.meals.get_mut(index).unwrap().as_common_mut().number = number;
                 }
                 true
             },
             MealMsg::UpdateDay(index, day) => {
                 if let Ok(day) = day.parse() {
-                    terv.meals.get_mut(index).unwrap().day = ShopDay::Day(day);
+                    terv.meals.get_mut(index).unwrap().as_common_mut().day = ShopDay::Day(day);
                 } else {
-                    terv.meals.get_mut(index).unwrap().day = ShopDay::Name(day);
+                    terv.meals.get_mut(index).unwrap().as_common_mut().day = ShopDay::Name(day);
                 }
                 true
             },
@@ -85,6 +89,12 @@ impl Component for MealPage {
                 self.focus_nav.set_edit();
                 false
             },
+            MealMsg::HandlePaste(text, row_index, column_index) => {
+                log!("row:", row_index, "col:", column_index, "text:", &text);
+                handle_paste(&text, row_index, column_index, &mut terv.osszetevok, &mut self.focus_nav);
+                true
+            },
+            MealMsg::DoNothing => false,
             _ => {true}
         }
     }
@@ -95,7 +105,7 @@ impl Component for MealPage {
         let terv = app_data.terv.borrow();
 
         let recipe_list = terv.recipes.iter().map(|recipe| &recipe.name);
-        let mut recipe_list: Vec<_> = recipe_list.chain(terv.meals.iter().map(|meal| &meal.recipe)).collect();
+        let mut recipe_list: Vec<_> = recipe_list.chain(terv.meals.iter().map(|meal| &meal.as_common().recipe)).collect();
         recipe_list.sort();
         recipe_list.dedup();
 
@@ -134,6 +144,8 @@ impl Component for MealPage {
                             MealMsg::MouseClick
                         });
 
+                        let value = value.as_common();
+
                         html! {
                             <tr>
                                 <td><input type="text" list="recipe_list" value={value.recipe.clone()} onchange={update_recipe}
@@ -149,7 +161,7 @@ impl Component for MealPage {
                                 if value.number == 0 {
                                     <td class="warn">{ "A létszám nulla" }</td>
                                 }
-                                if value.day == ShopDay::Day(Time::new()) || value.day == ShopDay::Name(String::new()) {
+                                if value.day == ShopDay::Day(Time::default()) || value.day == ShopDay::Name(String::new()) {
                                     <td class="warn">{ "A nap nulla / nem változott" }</td>
                                 }
                             </tr>
