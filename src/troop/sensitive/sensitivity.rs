@@ -80,3 +80,9 @@ impl From<&str> for Sensitivities {
         res.into()
     }
 }
+
+impl From<&String> for Sensitivities {
+    fn from(value: &String) -> Self {
+        Sensitivities::from(value.as_str())
+    }
+}

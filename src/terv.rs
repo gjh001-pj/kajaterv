@@ -7,6 +7,7 @@ use gloo::console::log;
 use crate::beszer::{BeszerLista, BeszerListak, Item};
 use crate::convert::{Conversation, Conversations, Convert};
 use crate::recipe::subrecipe::SubRecipes;
+use crate::recipe::SensMode;
 use crate::recipe::{Recipes, Recipe, ingredient::Ingredient};
 use crate::osszetevok::{self, Osszetevo, Osszetevok};
 use crate::meal::{Meal, Meals, CommonMeal, TroupMeal};
@@ -14,6 +15,7 @@ use crate::backend::matrix::{Matrix, Subs, Sub};
 use crate::shop::{Shoppings, Shopping, ShopDay};
 use crate::backend::time::Time;
 use crate::beszer::display::{format_quantities, format_prices, format_quantities2};
+use crate::troop::sensitive::sensitivity::Sensitivities;
 use crate::troop::{Troops, Troop};
 
 pub mod display;
@@ -36,7 +38,7 @@ impl Terv {
     pub fn new() -> Self {
         Terv {
             osszetevok: Osszetevok(vec![Osszetevo::new()]),
-            recipes: Recipes(vec![Recipe::new()]),
+            recipes: Recipes(vec![Recipe::default()]),
             meals: Meals(vec![Meal::default()]),
             shoppingdays: Shoppings(vec![Shopping::new()]),
             matrix: Matrix::new(),
@@ -57,7 +59,7 @@ impl Terv {
     pub fn clone_pure(&self) -> Self {
         Self {
             osszetevok: Osszetevok(self.osszetevok.iter().filter(|&v| v != &Osszetevo::new()).cloned().collect::<Vec<_>>()),
-            recipes: Recipes(self.recipes.iter().filter(|&v| v != &Recipe::new()).cloned().collect::<Vec<_>>()),
+            recipes: Recipes(self.recipes.iter().filter(|&v| v != &Recipe::default()).cloned().collect::<Vec<_>>()),
             meals: Meals(self.meals.iter().filter(|&v| v != &Meal::default()).cloned().collect::<Vec<_>>()),
             shoppingdays: Shoppings(self.shoppingdays.iter().filter(|&v| v != &Shopping::new()).cloned().collect::<Vec<_>>()),
             matrix: Matrix::new(),
@@ -72,7 +74,7 @@ impl Terv {
 
     pub fn pure(&mut self) {
         self.osszetevok.retain(|v| v != &Osszetevo::new());
-        self.recipes.retain(|v| v != &Recipe::new());
+        self.recipes.retain(|v| v != &Recipe::default());
         self.meals.retain(|v| v != &Meal::default());
         self.shoppingdays.retain(|v| v != &Shopping::new());
         self.matrix = Matrix::new();
@@ -397,6 +399,8 @@ fn test_calculate_matrix() {
                 }
             ].into(),
             sub_recipes: SubRecipes::default(),
+            sens_mode: SensMode::default(),
+            sens: Sensitivities::default(),
         }]),
         meals: Meals(vec![
             Meal::Common(CommonMeal {

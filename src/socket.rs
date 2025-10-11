@@ -105,7 +105,7 @@ pub fn request_data() {
 }
 
 pub fn save_data(terv: &mut Terv, old_terv: &mut Terv) {
-    let mut data = Data::new();
+    let mut data = Data::default();
     terv.pure();
     *old_terv = terv.clone();
     terv.make_beszerek();

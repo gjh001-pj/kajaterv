@@ -1,7 +1,7 @@
 
 use core::num;
-use std::ops::{Deref, DerefMut};
-use crate::{backend::paste::PasteCell, ew::{EWs, GetEWs, EW}, recipe::subrecipe::SubRecipes};
+use std::{fmt::Display, ops::{Deref, DerefMut}, str::FromStr};
+use crate::{backend::paste::PasteCell, ew::{EWs, GetEWs, EW}, recipe::subrecipe::SubRecipes, troop::sensitive::sensitivity::Sensitivities};
 use crate::create_vec_wrapper;
 
 //use crate::osszetevok::Osszetevo;
@@ -14,22 +14,56 @@ pub mod display;
 use ingredient::{Ingredient, Ingredients};
 
 #[derive(Debug, PartialEq, Clone, Default)]
+pub enum SensMode {
+    FromOssz,
+    FromRec,
+    Both,
+    #[default]
+    None,
+}
+impl Display for SensMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Self::FromOssz => "FO",
+            Self::FromRec => "FR",
+            Self::Both => "B",
+            Self::None => "N",
+        })
+    }
+}
+impl FromStr for SensMode {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "FO" => Ok(Self::FromOssz),
+            "FR" => Ok(Self::FromRec),
+            "B" => Ok(Self::Both),
+            "N" => Ok(Self::None),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Recipe {
     pub name: String,
     pub number: u32,
     pub ingredients: Ingredients,
     pub sub_recipes: SubRecipes,
+    pub sens_mode: SensMode,
+    pub sens: Sensitivities,
 }
 
+
 impl Recipe {
-    pub fn new() -> Self {
-        Recipe {
-            name: String::new(),
-            number: 0,
-            ingredients: Ingredients::default(),
-            sub_recipes: SubRecipes::default(),
-        }
-    }
+    // pub fn new() -> Self {
+    //     Recipe {
+    //         name: String::new(),
+    //         number: 0,
+    //         ingredients: Ingredients::default(),
+    //         sub_recipes: SubRecipes::default(),
+    //     }
+    // }
 
     pub fn set_name(&mut self, name: String) {
         self.name = name;

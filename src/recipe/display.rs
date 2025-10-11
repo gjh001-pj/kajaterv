@@ -48,6 +48,8 @@ pub enum RecipeMsg {
     SearchRecipe(String),
     UpdateName(String),
     UpdateNumber(String),
+    SetSensMode(String),
+    UpdateSensitivities(String),
     UpdateSubRecipeName(usize, String),
     UpdateScale(usize, String),
     UpdateIngredientName(usize, String),
@@ -100,7 +102,7 @@ impl Component for RecipePage {
 
         match msg {
             RecipeMsg::AddRecipe => {
-                terv.recipes.push(Recipe::new());
+                terv.recipes.push(Recipe::default());
                 self.current_recipe = Some(terv.recipes.len() - 1);
                 self.focus_nav_ing.build(0, 3);
                 self.focus_nav_sub.build(0, 2);
@@ -124,6 +126,17 @@ impl Component for RecipePage {
                     let recipe = self.get_curr_recipe(&mut terv);
                     recipe.number = number;
                 }
+                true
+            },
+            RecipeMsg::SetSensMode(sens_mode) => {
+                let recipe = self.get_curr_recipe(&mut terv);
+                recipe.sens_mode = sens_mode.parse().unwrap_or(SensMode::default());
+                true
+            },
+            RecipeMsg::UpdateSensitivities(sens) => {
+                log!("sens:", &sens);
+                let recipe = self.get_curr_recipe(&mut terv);
+                recipe.sens = Sensitivities::from(&sens);
                 true
             },
             RecipeMsg::UpdateSubRecipeName(index, name) => {
@@ -173,7 +186,7 @@ impl Component for RecipePage {
                 self.focus_nav_ing.build(recipe.ingredients.len(), 3);
                 true
             },
-            RecipeMsg::RemoveIngredient(index) => {
+            RecipeMsg::RemoveSubRecipe(index) => {
                 let recipe = self.get_curr_recipe(&mut terv);
                 recipe.sub_recipes.remove(index);
                 self.focus_nav_sub.build(recipe.sub_recipes.len(), 2);
@@ -284,6 +297,22 @@ impl Component for RecipePage {
                                     if recipe.number == 0 {
                                         <td class="warn">{ "A létszám nulla" }</td>
                                     }
+                                </tr>
+                                <tr>
+                                    <th>{ "Érzékenység mód" }</th>
+                                    <td><select onchange={ link.callback(move |e: Event| {
+                                        let input: HtmlInputElement = e.target_unchecked_into();
+                                        RecipeMsg::SetSensMode(input.value())})} >
+                                        <option value={ "FO" }>{ "Összetevőkből" }</option>
+                                        <option value={ "FR" }>{ "Receptből" }</option>
+                                        <option value={ "B" }>{ "Mindkettőből" }</option>
+                                        <option value={ "N" }>{ "Nincs" }</option>
+                                    </select></td>
+                                    <td><input type="text" value={recipe.sens.to_string()} 
+                                        disabled={if recipe.sens_mode == SensMode::FromOssz || recipe.sens_mode == SensMode::None {true} else {false}}
+                                        onchange={link.callback(move |e: Event| {
+                                        let input: HtmlInputElement = e.target_unchecked_into();
+                                        RecipeMsg::UpdateSensitivities(input.value())})} /></td>
                                 </tr>
                                 <tr>
                                     <th>{ "Alrecept" }</th><th>{ "Szorzó" }</th>

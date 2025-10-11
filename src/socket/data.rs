@@ -5,12 +5,13 @@ use std::str::FromStr;
 use crate::backend::time::Time;
 use crate::convert::Conversation;
 use crate::recipe::subrecipe::{SubRecipe, SubRecipes};
-use crate::recipe::{Recipe, Recipes};
+use crate::recipe::{Recipe, Recipes, SensMode};
 use crate::shop::{ShopDay, Shopping, Shoppings};
 use crate::recipe::ingredient::{Ingredient, Ingredients};
 use crate::terv::Terv;
 use crate::osszetevok::{Osszetevo, Osszetevok};
 use crate::meal::{CommonMeal, Meal, Meals};
+use crate::troop::sensitive::sensitivity::Sensitivities;
 use crate::troop::*;
 use crate::troop::sensitive::Sensitive;
 
@@ -39,18 +40,18 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn new() -> Self {
-        Self {
-            fields: 0,
-            osszetevok: String::new(),
-            recipes: String::new(),
-            meals: String::new(),
-            shoppings: String::new(),
-            beszer: String::new(),
-            conv: String::new(),
-            troops: String::new(),
-        }
-    }
+    // pub fn new() -> Self {
+    //     Self {
+    //         fields: 0,
+    //         osszetevok: String::new(),
+    //         recipes: String::new(),
+    //         meals: String::new(),
+    //         shoppings: String::new(),
+    //         beszer: String::new(),
+    //         conv: String::new(),
+    //         troops: String::new(),
+    //     }
+    // }
 
     pub fn convert_string(&mut self, terv: &Terv, command: u8) {
         self.fields = command;
@@ -83,31 +84,86 @@ impl Data {
         }).collect::<Vec<String>>().join("\n");
     }
     pub fn convert_string_rec(&mut self, terv: &Terv) {
-        let max_len = terv.recipes.iter()
-            .map(|x| x.ingredients.len() + x.sub_recipes.len()).max().unwrap_or(0);
-        self.recipes = (0..max_len + 1).map(|row| {
-            terv.recipes.iter().map(|recipe| {
-                if row == 0 {
-                    return format!("{}\t{}\t\t\t", recipe.name, recipe.number);
-                } else {
-                    if recipe.sub_recipes.len() > 0 {
-                       if row == 1 {
-                           return String::from("subrecipes\t\t\t\t");
-                       } else if let Some(sub_rec) = recipe.sub_recipes.get(row - 2) {
-                           return format!("{}\t{}\t\t\t", sub_rec.name, sub_rec.scale);
-                       }
-                   }
-                   if recipe.ingredients.len() > 0 {
-                        let rows_above = if recipe.sub_recipes.len() > 0 {recipe.sub_recipes.len() + 2} else {1};
-                        if row == rows_above {
-                            return String::from("ingredients\t\t\t\t");
-                        } else if let Some(ingredient) = recipe.ingredients.get(row - rows_above - 1) {
-                            return format!("{}\t{}\t{}\t\t", ingredient.name, ingredient.quantity.to_string().replace(".", ","), ingredient.unit);
-                        }
-                   }
-                   return String::from("\t\t\t\t");
-                }
-            }).collect::<Vec<_>>().join("")
+        let mut rec_arr: Vec<Vec<String>> = Vec::new();
+        let mut max_lines = 0;
+        terv.recipes.iter().enumerate().for_each(|(i, recipe)| {
+            let mut lines: Vec<String> = Vec::new();
+
+            lines.push(format!("{}\t{}\t\t\t", recipe.name, recipe.number));
+
+            if recipe.sens.len() > 0 || recipe.sens_mode != SensMode::default() {
+                lines.push(format!("sensitivities\t{}\t{}\t\t", 
+                    recipe.sens_mode, recipe.sens.to_string()));
+            }
+
+            if recipe.sub_recipes.len() > 0 {
+                lines.push(String::from("subrecipes\t\t\t\t"));
+                recipe.sub_recipes.iter().for_each(|sub_recipe| {
+                    lines.push(format!("{}\t{}\t\t\t", sub_recipe.name, sub_recipe.scale));
+                });
+            }
+
+            if recipe.ingredients.len() > 0 {
+                lines.push(String::from("ingredients\t\t\t\t"));
+                recipe.ingredients.iter().for_each(|ingredient| {
+                    lines.push(format!("{}\t{}\t{}\t\t", 
+                        ingredient.name, ingredient.quantity.to_string().replace(".", ","), ingredient.unit));
+                });
+            }
+
+            max_lines = max_lines.max(lines.len());
+
+            rec_arr.push(lines);
+        });
+
+
+        self.recipes = (0..max_lines).map(|row| {
+            let mut res = String::new();
+            rec_arr.iter().for_each(|lines| {
+                res += lines.get(row).unwrap_or(&String::from("\t\t\t\t"));
+            });
+            res
+        }).collect::<Vec<_>>().join("\n");
+
+
+
+        // for rec_lines in rec_arr.iter() {
+        //     for row in 0..max_lines {
+        //         if let Some(line) = rec_lines.get(row) {
+
+        //         }
+        //     }
+        // }
+
+        //  = res.join("\t");
+
+
+        // let max_len = terv.recipes.iter()
+        //     .map(|x| x.ingredients.len() + x.sub_recipes.len()).max().unwrap_or(0);
+        
+        // self.recipes = (0..max_len + 1).map(|row| {
+        //     terv.recipes.iter().map(|recipe| {
+        //         if row == 0 {
+        //             return format!("{}\t{}\t\t\t", recipe.name, recipe.number);
+        //         } else {
+        //             if recipe.sub_recipes.len() > 0 {
+        //                if row == 1 {
+        //                    return String::from("subrecipes\t\t\t\t");
+        //                } else if let Some(sub_rec) = recipe.sub_recipes.get(row - 2) {
+        //                    return format!("{}\t{}\t\t\t", sub_rec.name, sub_rec.scale);
+        //                }
+        //            }
+        //            if recipe.ingredients.len() > 0 {
+        //                 let rows_above = if recipe.sub_recipes.len() > 0 {recipe.sub_recipes.len() + 2} else {1};
+        //                 if row == rows_above {
+        //                     return String::from("ingredients\t\t\t\t");
+        //                 } else if let Some(ingredient) = recipe.ingredients.get(row - rows_above - 1) {
+        //                     return format!("{}\t{}\t{}\t\t", ingredient.name, ingredient.quantity.to_string().replace(".", ","), ingredient.unit);
+        //                 }
+        //            }
+        //            return String::from("\t\t\t\t");
+        //         }
+        //     }).collect::<Vec<_>>().join("")
 
             // if row == 0 {
             //     terv.recipes.iter().map(|recipe| {
@@ -122,7 +178,7 @@ impl Data {
             //         }
             //     }).collect::<Vec<String>>().join("")
             // }
-        }).collect::<Vec<String>>().join("\n");
+        // }).collect::<Vec<String>>().join("\n");
     }
     pub fn convert_string_meal(&mut self, terv: &Terv) {
         self.meals = terv.meals.iter().map(|meal| {
@@ -248,7 +304,9 @@ impl Data {
                         number: slice[1].parse().unwrap_or(0),
                         ingredients: Ingredients::default(),
                         sub_recipes: SubRecipes::default(),
-                    })
+                        sens_mode: SensMode::default(),
+                        sens: Sensitivities::default(),
+                    });
                 } else {
                     if slice[0] == "" { continue; }
                     if slice[0] == "subrecipes" {
@@ -260,7 +318,10 @@ impl Data {
                         continue;
                     }
                     let recipe = recipes.get_mut(rec_index).unwrap();
-                    if next_sub_recipe == true {
+                    if slice[0] == "sensitivities" {
+                        recipe.sens_mode = slice[1].parse().unwrap_or(SensMode::default());
+                        recipe.sens = Sensitivities::from(slice[2]);
+                    } else if next_sub_recipe == true {
                         recipe.sub_recipes.push(SubRecipe {
                             name: slice[0].to_string(),
                             scale: slice[1].parse().unwrap_or(0.0),
