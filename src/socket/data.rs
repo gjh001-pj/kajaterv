@@ -175,7 +175,7 @@ impl Data {
     }
     pub fn convert_string_troop(&mut self, terv: &Terv) {
         let max_len = terv.troops.iter()
-            .map(|x| x.sensitives.len()).max().unwrap();
+            .map(|x| x.sensitives.len()).max().unwrap_or(0);
         self.troops = (0..max_len + 1).map(|row| {
             if row == 0 {
                 terv.troops.iter().map(|troop| {
@@ -207,7 +207,7 @@ impl Data {
         if self.fields & com::SHOP > 0 {
             self.convert_data_shop(terv);
         }
-        if self.fields & com::BESZ > 0 {}
+        //if self.fields & com::BESZ > 0 {}
         if self.fields & com::CONV > 0 {
             self.convert_data_conv(terv);
         }

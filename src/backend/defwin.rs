@@ -30,7 +30,7 @@ where
         DefWinMsg::MouseClick => {
             focus_nav.set_edit();
             false
-        }
+        },
         DefWinMsg::HandlePaste(row, col, e) => {
             if let Some(clipboard_event) = e.dyn_ref::<ClipboardEvent>() {
                 if let Some(data_transfer) = clipboard_event.clipboard_data() {
@@ -57,7 +57,7 @@ where
                 }
             } else {
                 log!("Event is not a ClipboardEvent.");
-                return false
+                return false;
             }
         }
         _ => false,

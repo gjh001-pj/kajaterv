@@ -107,7 +107,7 @@ impl Osszetevok {
                 return Some(osszetevo);
             }
         }
-        return None
+        return None;
     }
 
     pub fn by_name_def(&self) -> Option<&Osszetevo> {
