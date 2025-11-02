@@ -5,7 +5,7 @@ use std::fmt::Display;
 
 use crate::create_vec_wrapper;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Sensitivity {
     G,
     TF,

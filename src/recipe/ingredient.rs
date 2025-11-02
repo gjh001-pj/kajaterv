@@ -7,7 +7,7 @@ use crate::ew::{GetEWs, EW, EWs};
 use crate::terv::Terv;
 use crate::backend::paste::PasteCell;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Ingredient {
     pub name: String,
     pub quantity: f64,
@@ -92,6 +92,18 @@ impl PasteCell for Ingredient {
 }
 
 create_vec_wrapper!(Ingredients, Ingredient, GetEWs);
+
+// impl AsRef<Vec<Ingredient>> for Ingredients {
+//     fn as_ref(&self) -> &Vec<Ingredient> {
+//         &self.0
+//     }
+// }
+
+// impl AsMut<Vec<Ingredient>> for Ingredients {
+//     fn as_mut(&mut self) -> &mut Vec<Ingredient> {
+//         &mut self.0
+//     }
+// }
 
 // impl GetEWs for Ingredients {
 //     fn get_errors(&self, terv: &Terv) -> EWs<crate::ew::Err> {

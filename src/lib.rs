@@ -15,6 +15,8 @@ pub mod backend;
 pub mod close;
 pub mod ew;
 pub mod troop;
+pub mod input;
+pub mod tr;
 
 
 

@@ -1,7 +1,7 @@
 
 use core::num;
 use std::{fmt::Display, ops::{Deref, DerefMut}, str::FromStr};
-use crate::{backend::paste::PasteCell, ew::{EWs, GetEWs, EW}, recipe::subrecipe::SubRecipes, troop::sensitive::sensitivity::Sensitivities};
+use crate::{backend::paste::PasteCell, ew::{EW, EWs, GetEWs, Err}, osszetevok::Osszetevok, recipe::subrecipe::SubRecipes, troop::sensitive::sensitivity::Sensitivities};
 use crate::create_vec_wrapper;
 
 //use crate::osszetevok::Osszetevo;
@@ -39,7 +39,7 @@ impl FromStr for SensMode {
             "FR" => Ok(Self::FromRec),
             "B" => Ok(Self::Both),
             "N" => Ok(Self::None),
-            _ => Err(()),
+            _ => Result::Err(()),
         }
     }
 }
@@ -56,6 +56,53 @@ pub struct Recipe {
 
 
 impl Recipe {
+    pub fn get_sens_from_recipe(&self) -> Sensitivities {
+        self.sens.clone()
+    }
+
+    pub fn get_sens_from_ings(&self, osszetevok: &Osszetevok) -> (Sensitivities, Option<EW<Err>>) {
+        let mut err: EWs<Err> = EWs::new();
+        let mut res = Sensitivities::default();
+        for ing in self.ingredients.iter() {
+            let osszetevo = match osszetevok.by_name(&ing.name) {
+                Some(v) => v,
+                None => {
+                    err.push(EW::from(format!("Nincs ilyen összetevő: {}", ing.name)));
+                    continue;
+                }
+            };
+            res.append(&mut osszetevo.sens.clone());
+        }
+        res.sort();
+        res.dedup();
+
+        (res, err.to_child(format!("from recipe: {}", self.name)))//if err.len() == 0 {EW::None} 
+            //else {EW::Child { from: format!("from recipe: {}", self.name), ews: err }})
+    }
+
+    pub fn get_sens(&self, osszetevok: &Osszetevok) -> (Sensitivities, Option<EW<Err>>) {
+        let mut sens = Sensitivities::default();
+        let mut err: EWs<Err> = EWs::new();
+        if self.sens_mode == SensMode::FromRec || self.sens_mode == SensMode::Both {
+            sens = self.get_sens_from_recipe();
+        }
+        if self.sens_mode == SensMode::FromOssz || self.sens_mode == SensMode::Both {
+            for ing in self.ingredients.iter() {
+                let osszetevo = match osszetevok.by_name(&ing.name) {
+                    Some(v) => v,
+                    None => {
+                        err.push(EW::from(format!("Nincs ilyen összetevő: {}", ing.name)));
+                        continue;
+                    }
+                };
+                sens.append(&mut osszetevo.sens.clone());
+            }
+            sens.sort();
+            sens.dedup();
+        }
+        
+        (sens, err.to_child(format!("from recipe: {}", self.name)))
+    }
     // pub fn new() -> Self {
     //     Recipe {
     //         name: String::new(),
@@ -107,9 +154,6 @@ impl GetEWs for Recipe {
 create_vec_wrapper!(Recipes, Recipe);
 
 impl Recipes {
-    pub fn new() -> Self {
-        Recipes (Vec::new())
-    }
 
     pub fn exist(&self, recipe_name: &str) -> bool {
         for recipe in self.iter() {

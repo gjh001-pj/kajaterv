@@ -7,87 +7,58 @@ use crate::create_vec_wrapper;
 
 pub mod display;
 
+pub mod common;
+use common::CommonMeal;
+
+pub mod troup;
+use troup::TroupMeal;
+
+pub mod sensitive;
+
 #[derive(PartialEq, Clone, Debug)]
-pub enum Meal {
+pub enum MealType {
     Common(CommonMeal),
     Troup(TroupMeal),
 }
 
-impl Meal {
-    pub fn as_common(&self) -> &CommonMeal {
-        if let Self::Common(common) = self {
-            common
-        } else {
-            panic!("Not a Common Meal: {:?}", self)
-        }
-    }
-
-    pub fn as_troup(&self) -> &TroupMeal {
-        if let Self::Troup(troup) = self {
-            troup
-        } else {
-            panic!("Not a Troup Meal: {:?}", self)
-        }
-    }
-
-    pub fn as_common_mut(&mut self) -> &mut CommonMeal {
-        if let Self::Common(common) = self {
-            common
-        } else {
-            panic!("Not a Common Meal: {:?}", self)
-        }
-    }
-
-    pub fn as_troup_mut(&mut self) -> &mut TroupMeal {
-        if let Self::Troup(troup) = self {
-            troup
-        } else {
-            panic!("Not a Troup Meal: {:?}", self)
-        }
-    }
-}
-
-impl Default for Meal {
+impl Default for MealType {
     fn default() -> Self {
         Self::Common(CommonMeal::default())
     }
 }
 
 #[derive(PartialEq, Clone, Debug, Default)]
-pub struct SingleTroupMeal {
-    pub recipe: String,
-    pub number: u32,
-}
-
-#[derive(PartialEq, Clone, Debug, Default)]
-pub struct TroupMeal {
+pub struct Meal {
     pub day: ShopDay,
-    pub troups: Vec<SingleTroupMeal>
+    pub ty: MealType,
 }
 
-impl TroupMeal {
-    pub fn new(day: ShopDay, troupmeals: Vec<SingleTroupMeal>) -> Self {
-        Self {
-            day,
-            troups: troupmeals,
+impl Meal {
+    pub fn as_common(&self) -> &CommonMeal {
+        match &self.ty {
+            MealType::Common(v) => v,
+            other => panic!("Not a Common Meal: {:?}", other),
         }
     }
-}
 
+    pub fn as_troup(&self) -> &TroupMeal {
+        match &self.ty {
+            MealType::Troup(v) => v,
+            other => panic!("Not a Troup Meal: {:?}", other),
+        }
+    }
 
-#[derive(PartialEq, Clone, Debug, Default)]
-pub struct CommonMeal {
-    pub recipe: String,
-    pub number: u32,
-    pub day: ShopDay,
-}
+    pub fn as_common_mut(&mut self) -> &mut CommonMeal {
+        match &mut self.ty {
+            MealType::Common(v) => v,
+            other => panic!("Not a Common Meal: {:?}", other),
+        }
+    }
 
-impl CommonMeal {
-    pub fn new(recipe: String, number: u32, day: ShopDay) -> Self {
-        CommonMeal {
-            recipe,
-            number,
-            day,
+    pub fn as_troup_mut(&mut self) -> &mut TroupMeal {
+        match &mut self.ty {
+            MealType::Troup(v) => v,
+            other => panic!("Not a Troup Meal: {:?}", other),
         }
     }
 }

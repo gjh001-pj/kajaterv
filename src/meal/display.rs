@@ -6,6 +6,7 @@ use crate::backend::keyboard::TableFocusNavigator;
 use crate::terv::AppContext;
 use crate::terv::display::TervProps;
 use crate::backend::paste::handle_paste;
+use crate::ew::{EW, GetEWs};
 
 use super::*;
 
@@ -59,7 +60,7 @@ impl Component for MealPage {
                 true
             },
             MealMsg::UpdateRecipe(index, recipe) => {
-                terv.meals.get_mut(index).unwrap().as_common_mut().recipe = recipe;
+                terv.meals.get_mut(index).unwrap().as_common_mut().main_recipe = recipe;
                 true
             },
             MealMsg::UpdateNumber(index, number) => {
@@ -70,9 +71,9 @@ impl Component for MealPage {
             },
             MealMsg::UpdateDay(index, day) => {
                 if let Ok(day) = day.parse() {
-                    terv.meals.get_mut(index).unwrap().as_common_mut().day = ShopDay::Day(day);
+                    terv.meals.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
-                    terv.meals.get_mut(index).unwrap().as_common_mut().day = ShopDay::Name(day);
+                    terv.meals.get_mut(index).unwrap().day = ShopDay::Name(day);
                 }
                 true
             },
@@ -105,7 +106,7 @@ impl Component for MealPage {
         let terv = app_data.terv.borrow();
 
         let recipe_list = terv.recipes.iter().map(|recipe| &recipe.name);
-        let mut recipe_list: Vec<_> = recipe_list.chain(terv.meals.iter().map(|meal| &meal.as_common().recipe)).collect();
+        let mut recipe_list: Vec<_> = recipe_list.chain(terv.meals.iter().map(|meal| &meal.as_common().main_recipe)).collect();
         recipe_list.sort();
         recipe_list.dedup();
 
@@ -120,7 +121,7 @@ impl Component for MealPage {
                     <tr>
                         <th>{ "Recipe" }</th><th>{ "Létszám" }</th><th>{ "Nap" }</th>
                     </tr>
-                    { for terv.meals.iter().enumerate().map(|(index, value)| {
+                    { for terv.meals.iter().enumerate().map(|(index, meal)| {
                         let update_recipe = link.callback(move |e: Event| {
                             let input: HtmlInputElement = e.target_unchecked_into();
                             MealMsg::UpdateRecipe(index, input.value())
@@ -144,27 +145,32 @@ impl Component for MealPage {
                             MealMsg::MouseClick
                         });
 
-                        let value = value.as_common();
-
-                        html! {
-                            <tr>
-                                <td><input type="text" list="recipe_list" value={value.recipe.clone()} onchange={update_recipe}
-                                    onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></td>
-                                <td><input type="number" min="0" value={if value.number != 0 {value.number.to_string()} else {"".to_string()}} onchange={update_number}
-                                    onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></td>
-                                <td><input value={value.day.to_string()} onchange={update_day}
-                                    onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></td>
-                                <td><button onclick={link.callback(move |_| MealMsg::RemoveMeal(index))}>{ "Remove" }</button></td>
-                                if !terv.recipes.exist(&value.recipe) {
-                                    <td class="err">{ "A recept nem található" }</td>
-                                }
-                                if value.number == 0 {
-                                    <td class="warn">{ "A létszám nulla" }</td>
-                                }
-                                if value.day == ShopDay::Day(Time::default()) || value.day == ShopDay::Name(String::new()) {
-                                    <td class="warn">{ "A nap nulla / nem változott" }</td>
-                                }
-                            </tr>
+                        //let value = value.as_common();
+                        match &meal.ty {
+                            MealType::Common(common) => html! {
+                                <tr>
+                                    <td><input type="text" list="recipe_list" value={common.main_recipe.clone()} onchange={update_recipe}
+                                        onkeydown={onkeydown(0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} /></td>
+                                    <td><input type="number" min="0" value={if common.number != 0 {common.number.to_string()} else {"".to_string()}} onchange={update_number}
+                                        onkeydown={onkeydown(1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} /></td>
+                                    <td><input value={meal.day.to_string()} onchange={update_day}
+                                        onkeydown={onkeydown(2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} /></td>
+                                    <td><button onclick={link.callback(move |_| MealMsg::RemoveMeal(index))}>{ "Remove" }</button></td>
+                                    {for common.get_errors(&terv).iter().map(|error| html!{
+                                        <td class="err">{ match error {
+                                            EW::Owned(text) => text.clone(),
+                                            _ => "hiba a kódban".to_string(),
+                                        } }</td>
+                                    })}
+                                    {for common.get_warnings(&terv).iter().map(|warning| html!{
+                                        <td class="warn">{ match warning {
+                                            EW::Owned(text) => text.clone(),
+                                            _ => "hiba a kódban".to_string(),
+                                        } }</td>
+                                    })}
+                                </tr>
+                            },
+                            MealType::Troup(troup) => html!{},
                         }
                     })}
                 </table>

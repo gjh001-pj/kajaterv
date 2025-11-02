@@ -29,14 +29,14 @@ impl Component for ShopPage {
         let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
         let terv = app_data.terv.borrow();
         ShopPage {
-            focus_nav: TableFocusNavigator::new(terv.shoppingdays.len(), 2),
+            focus_nav: TableFocusNavigator::new(terv.shoppings.len(), 2),
         }
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
         let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
         let terv = app_data.terv.borrow();
-        self.focus_nav.build(terv.shoppingdays.len(), 2);
+        self.focus_nav.build(terv.shoppings.len(), 2);
         true
     }
 
@@ -45,23 +45,23 @@ impl Component for ShopPage {
         let mut terv = app_data.terv.borrow_mut();
         match msg {
             ShopMsg::Add => {
-                terv.shoppingdays.push(Shopping::new());
+                terv.shoppings.push(Shopping::new());
                 true
             },
             ShopMsg::UpdateName(index, name) => {
-                terv.shoppingdays.get_mut(index).unwrap().name = name;
+                terv.shoppings.get_mut(index).unwrap().name = name;
                 true
             },
             ShopMsg::UpdateShop(index, dayname) => {
                 if let Ok(day) = dayname.parse() {
-                    terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Day(day);
+                    terv.shoppings.get_mut(index).unwrap().day = ShopDay::Day(day);
                 } else {
-                    terv.shoppingdays.get_mut(index).unwrap().day = ShopDay::Name(dayname);
+                    terv.shoppings.get_mut(index).unwrap().day = ShopDay::Name(dayname);
                 }
                 true
             },
             ShopMsg::Remove(index) => {
-                terv.shoppingdays.remove(index);
+                terv.shoppings.remove(index);
                 true
             },
         }
@@ -80,7 +80,7 @@ impl Component for ShopPage {
                         <th>{ "Name" }</th>
                         <th>{ "Day / Name" }</th>
                     </tr>
-                    { for terv.shoppingdays.iter().enumerate().map(|(index, value)| {
+                    { for terv.shoppings.iter().enumerate().map(|(index, value)| {
                         let update_name = link.callback(move |e: Event| {
                             let input: HtmlInputElement = e.target_unchecked_into();
                             ShopMsg::UpdateName(index, input.value())

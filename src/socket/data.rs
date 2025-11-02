@@ -4,13 +4,15 @@ use std::str::FromStr;
 
 use crate::backend::time::Time;
 use crate::convert::Conversation;
+use crate::meal::MealType;
+use crate::meal::sensitive::SensitiveCases;
 use crate::recipe::subrecipe::{SubRecipe, SubRecipes};
 use crate::recipe::{Recipe, Recipes, SensMode};
 use crate::shop::{ShopDay, Shopping, Shoppings};
 use crate::recipe::ingredient::{Ingredient, Ingredients};
 use crate::terv::Terv;
 use crate::osszetevok::{Osszetevo, Osszetevok};
-use crate::meal::{CommonMeal, Meal, Meals};
+use crate::meal::{common::CommonMeal, Meal, Meals};
 use crate::troop::sensitive::sensitivity::Sensitivities;
 use crate::troop::*;
 use crate::troop::sensitive::Sensitive;
@@ -38,6 +40,9 @@ pub struct Data {
     pub conv: String,
     pub troops: String,
 }
+
+// todo alma
+// TODO alma
 
 impl Data {
     // pub fn new() -> Self {
@@ -182,15 +187,16 @@ impl Data {
     }
     pub fn convert_string_meal(&mut self, terv: &Terv) {
         self.meals = terv.meals.iter().map(|meal| {
-            if let Meal::Common(meal) = meal {
-                format!("{}\t{}\t{}", meal.recipe, meal.number, meal.day.to_string())
-            } else {
-                todo!()
+            match &meal.ty {
+                MealType::Common(common) => {
+                    format!("{}\t{}\t{}", common.main_recipe, common.number, meal.day.to_string())
+                },
+                MealType::Troup(troup) => todo!(),
             }
         }).collect::<Vec<String>>().join("\n");
     }
     pub fn convert_string_shop(&mut self, terv: &Terv) {
-        self.shoppings = terv.shoppingdays.iter().map(|shopping| {
+        self.shoppings = terv.shoppings.iter().map(|shopping| {
             format!("{}\t{}", shopping.name, shopping.day.to_string())
         }).collect::<Vec<String>>().join("\n");
     }
@@ -287,6 +293,7 @@ impl Data {
                     Err(_) => ShopDay::Name(cells[2].to_string()),
                 },
                 unit_price: cells[3].replace(",", ".").parse().unwrap_or(0.0),
+                sens: Sensitivities::default(), // todo!()
             }
         }).collect();
     }
@@ -342,17 +349,20 @@ impl Data {
         if self.meals == "" { return; }
         terv.meals.0 = self.meals.split("\n").map(|row| {
             let cells: Vec<&str> = row.split("\t").collect();
-            Meal::Common(CommonMeal {
-                recipe: cells[0].to_string(),
-                number: cells[1].parse().unwrap_or(0),
+            Meal {
                 day: ShopDay::from(cells[2]),
-            })
+                ty: MealType::Common(CommonMeal { 
+                    number: cells[1].parse().unwrap_or(0), 
+                    main_recipe: cells[0].to_string(), 
+                    sens_cases: SensitiveCases::default(), 
+                })
+            }
         }).collect();
     }
     pub fn convert_data_shop(&self, terv: &mut Terv) {
         if self.shoppings == "" { return; }
 
-        terv.shoppingdays.0 = self.shoppings.split("\n").map(|row| {
+        terv.shoppings.0 = self.shoppings.split("\n").map(|row| {
             let cells: Vec<&str> = row.split("\t").collect();
             Shopping {
                 name: cells[0].to_string(),

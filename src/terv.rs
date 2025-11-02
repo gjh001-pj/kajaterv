@@ -6,17 +6,22 @@ use gloo::console::log;
 
 use crate::beszer::{BeszerLista, BeszerListak, Item};
 use crate::convert::{Conversation, Conversations, Convert};
+use crate::ew::{EW, Err};
+use crate::meal::MealType;
+use crate::meal::sensitive::{CaseType, SensitiveCases};
 use crate::recipe::subrecipe::SubRecipes;
 use crate::recipe::SensMode;
 use crate::recipe::{Recipes, Recipe, ingredient::Ingredient};
 use crate::osszetevok::{self, Osszetevo, Osszetevok};
-use crate::meal::{Meal, Meals, CommonMeal, TroupMeal};
+use crate::meal::{Meal, Meals, common::CommonMeal, troup::TroupMeal};
 use crate::backend::matrix::{Matrix, Subs, Sub};
 use crate::shop::{Shoppings, Shopping, ShopDay};
 use crate::backend::time::Time;
 use crate::beszer::display::{format_quantities, format_prices, format_quantities2};
+use crate::troop::sensitive::Sensitives;
 use crate::troop::sensitive::sensitivity::Sensitivities;
 use crate::troop::{Troops, Troop};
+use crate::ew::EWs;
 
 pub mod display;
 
@@ -25,7 +30,7 @@ pub struct Terv {
     pub osszetevok: Osszetevok,
     pub recipes: Recipes,
     pub meals: Meals,
-    pub shoppingdays: Shoppings,
+    pub shoppings: Shoppings,
     pub matrix: Matrix,
     pub beszerek: BeszerListak,
     pub convs: Conversations,
@@ -37,10 +42,10 @@ pub struct Terv {
 impl Terv {
     pub fn new() -> Self {
         Terv {
-            osszetevok: Osszetevok(vec![Osszetevo::new()]),
+            osszetevok: Osszetevok(vec![Osszetevo::default()]),
             recipes: Recipes(vec![Recipe::default()]),
             meals: Meals(vec![Meal::default()]),
-            shoppingdays: Shoppings(vec![Shopping::new()]),
+            shoppings: Shoppings(vec![Shopping::default()]),
             matrix: Matrix::new(),
             beszerek: BeszerListak(Vec::new()),
             convs: Conversations(vec![
@@ -58,10 +63,10 @@ impl Terv {
 
     pub fn clone_pure(&self) -> Self {
         Self {
-            osszetevok: Osszetevok(self.osszetevok.iter().filter(|&v| v != &Osszetevo::new()).cloned().collect::<Vec<_>>()),
+            osszetevok: Osszetevok(self.osszetevok.iter().filter(|&v| v != &Osszetevo::default()).cloned().collect::<Vec<_>>()),
             recipes: Recipes(self.recipes.iter().filter(|&v| v != &Recipe::default()).cloned().collect::<Vec<_>>()),
             meals: Meals(self.meals.iter().filter(|&v| v != &Meal::default()).cloned().collect::<Vec<_>>()),
-            shoppingdays: Shoppings(self.shoppingdays.iter().filter(|&v| v != &Shopping::new()).cloned().collect::<Vec<_>>()),
+            shoppings: Shoppings(self.shoppings.iter().filter(|&v| v != &Shopping::new()).cloned().collect::<Vec<_>>()),
             matrix: Matrix::new(),
             beszerek: BeszerListak::new(),
             convs: Conversations(self.convs.iter().filter(|&v| v != &Conversation::new()).cloned().collect::<Vec<_>>()),
@@ -73,10 +78,10 @@ impl Terv {
     }
 
     pub fn pure(&mut self) {
-        self.osszetevok.retain(|v| v != &Osszetevo::new());
+        self.osszetevok.retain(|v| v != &Osszetevo::default());
         self.recipes.retain(|v| v != &Recipe::default());
         self.meals.retain(|v| v != &Meal::default());
-        self.shoppingdays.retain(|v| v != &Shopping::new());
+        self.shoppings.retain(|v| v != &Shopping::new());
         self.matrix = Matrix::new();
         self.beszerek = BeszerListak::new();
         self.convs.retain(|v| v != &Conversation::new());
@@ -85,16 +90,25 @@ impl Terv {
     }
 
     pub fn make_beszerek(&mut self) -> Option<String> {
-        if let Some(err) = self.calculate_matrix() {
-            return Some(err);
+        match self.calculate_matrix().map(|ew| ew.to_string()) {
+            None => (), 
+            other => return other,
         };
-        if let Some(err) = self.matrix_to_beszerek() {
-            return Some(err);
-        }
+        match self.matrix_to_beszerek().map(|ew| ew.to_string()) {
+            None => (), 
+            other => return other,
+        };
         None
+        // if let Some(err) = self.calculate_matrix() {
+        //     return Some(err);
+        // };
+        // if let Some(err) = self.matrix_to_beszerek() {
+        //     return Some(err);
+        // }
+        // None
     }
 
-    pub fn matrix_to_beszerek(&mut self) -> Option<String> {
+    pub fn matrix_to_beszerek(&mut self) -> Option<EW<Err>> {
         self.beszerek.clear();
         for (shopday, raw_items) in self.matrix.iter() {
             let mut recipes: Vec<&String> = raw_items.values().map(|subs| {
@@ -133,7 +147,7 @@ impl Terv {
             }).collect();
 
             self.beszerek.push(BeszerLista {
-                name: self.shoppingdays.get_by_day(shopday).expect("innen eredt").name.clone(),
+                name: self.shoppings.get_by_day(shopday).expect("innen eredt").name.clone(),
                 time: shopday.to_string(),
                 recipes: format_recipes,
                 items,
@@ -142,189 +156,284 @@ impl Terv {
 
         self.beszerek.sort_by_key(|beszerlista| beszerlista.time.parse::<Time>());
 
+        //log!(format!("{:#?}", self.beszerek));
+
         None
     }
 
-    pub fn calculate_matrix(&mut self) -> Option<String> {
+    pub fn handle_name_shopday(&mut self, meals: &mut Meals, shopday_name: &str) -> Option<EW<Err>> {
+        let mut shopday_errs: EWs<Err> = EWs::new();
+        for index in 0..meals.len() {
+            let meal = &meals[index];
+            if let ShopDay::Name(meal_day) = &meal.day {
+                if meal_day != shopday_name {
+                    continue;
+                }
+                let hash = self.matrix.entry(meal.day.clone()).or_insert(HashMap::new());
+                
+                // -------------------
+                let mut meal_errs: EWs<Err> = EWs::new();
+                match &meal.ty {
+                    MealType::Common(common) => {
+                        let recipe = match self.recipes.get_recipe(&common.main_recipe) {
+                            Some(v) => v,
+                            None => {
+                                shopday_errs.push(EW::from(format!("Nem található ilyen recept: {}, étkezés ideje: {}", &common.main_recipe, meal.day)));
+                                continue;
+                            }
+                        };
+
+                        // there is no sensitivity check in name-ShopDayed meals
+
+                        for ingredient in recipe.ingredients.iter() {
+                            let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
+                                Some(v) => v,
+                                None => {
+                                    meal_errs.push(EW::from(format!("Összetevő nem található: {}", ingredient.name)));
+                                    continue;
+                                }
+                            };
+                            let converted = match ingredient.convert(&osszetevo.unit, &self.convs) {
+                                Some(quantity) => quantity,
+                                None => {
+                                    meal_errs.push(EW::from(format!("Nem lehet {} összetevőt {}-ról/ről {}-ra/re átváltani.", ingredient.name, ingredient.unit, osszetevo.unit)));
+                                    continue;
+                                }
+                            };
+                            let quantity = converted * common.number as f64 / recipe.number as f64;
+                            let sub = Sub {
+                                quantity, 
+                                price: osszetevo.unit_price * quantity,
+                                recipe: recipe.name.clone(), 
+                                number: common.number
+                            };
+                            hash.entry(ingredient.name.clone()).or_insert(Subs::new()).push(sub);
+                        }
+                        shopday_errs.push_opt(meal_errs.to_child(common.main_recipe.clone()));//EW::Child { from: common.main_recipe.clone(), ews: meal_errs });
+                    },
+                    MealType::Troup(troup) => todo!(),
+                }
+
+                // -------------------
+                
+                meals.remove(index);
+            }
+        }
+
+        shopday_errs.to_child(shopday_name.to_owned())
+    }
+
+    pub fn calculate_matrix(&mut self) -> Option<EW<Err>> {//   Option<String> {
+        let mut matrix_errs: EWs<Err> = EWs::new();
         let mut meals = self.meals.clone();
 
         self.matrix.clear();
 
-        let mut vdays: Vec<Time> = Vec::new();
+        let mut vasar_days: Vec<Time> = Vec::new();
 
-        for shoppingday in self.shoppingdays.iter() {
-            match &shoppingday.day {
-                ShopDay::Day(day) => vdays.push(*day),
+        // separate ShopDay::Name, list vasar napok
+        let mut name_shopday_errs: EWs<Err> = EWs::new();
+
+        for shopping in self.shoppings.clone().iter() {
+            match &shopping.day {
+                ShopDay::Day(day) => vasar_days.push(*day),
                 ShopDay::Name(name) => {
-                    for (index, meal) in meals.clone().iter().enumerate() {
-                        if let ShopDay::Name(meal_day) = &meal.as_common().day{
-                            if meal_day == name {
-                                meals.remove(index);
-                                let hash = self.matrix.entry(meal.as_common().day.clone()).or_insert(HashMap::new());
-                                let recipe = match self.recipes.get_recipe(&meal.as_common().recipe) {
-                                    Some(v) => v,
-                                    None => {
-                                        return Some(format!("Nem található ilyen recept: {}, étkezés ideje: {}", meal.as_common().recipe, meal.as_common().day.to_string()));
-                                    }
-                                };
-                                for ingredient in recipe.ingredients.iter() {
-                                    let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
-                                        Some(osszetevo) => osszetevo,
-                                        None => {
-                                            return Some(format!("Összetevő nem található: {}", ingredient.name));
-                                        }
-                                    };
-                                    let converted = match ingredient.convert(&osszetevo.unit, &self.convs) {
-                                        Some(quantity) => quantity,
-                                        None => {
-                                            return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, osszetevo.unit));
-                                        }
-                                    };
-                                    let quantity = converted * meal.as_common().number as f64 / recipe.number as f64;
-                                    let sub = Sub {
-                                        quantity, 
-                                        price: osszetevo.unit_price * quantity,
-                                        recipe: recipe.name.clone(), 
-                                        number: meal.as_common().number
-                                    };
-                                    hash.entry(ingredient.name.clone()).or_insert(Subs(vec![sub.clone()])).push(sub);
-                                }
-                        }}
-                    }
+                    name_shopday_errs.push_opt(self.handle_name_shopday(&mut meals, name));
+                    // for (index, meal) in meals.clone().iter().enumerate() {
+                    //     if let ShopDay::Name(meal_day) = &meal.as_common().day{
+                    //         if meal_day == name {
+                    //             meals.remove(index);
+                    //             let hash = self.matrix.entry(meal.as_common().day.clone()).or_insert(HashMap::new());
+                    //             let recipe = match self.recipes.get_recipe(&meal.as_common().main_recipe) {
+                    //                 Some(v) => v,
+                    //                 None => {
+                    //                     return Some(format!("Nem található ilyen recept: {}, étkezés ideje: {}", meal.as_common().main_recipe, meal.as_common().day.to_string()));
+                    //                 }
+                    //             };
+                    //             for ingredient in recipe.ingredients.iter() {
+                    //                 let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
+                    //                     Some(osszetevo) => osszetevo,
+                    //                     None => {
+                    //                         return Some(format!("Összetevő nem található: {}", ingredient.name));
+                    //                     }
+                    //                 };
+                    //                 let converted = match ingredient.convert(&osszetevo.unit, &self.convs) {
+                    //                     Some(quantity) => quantity,
+                    //                     None => {
+                    //                         return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, osszetevo.unit));
+                    //                     }
+                    //                 };
+                    //                 let quantity = converted * meal.as_common().number as f64 / recipe.number as f64;
+                    //                 let sub = Sub {
+                    //                     quantity, 
+                    //                     price: osszetevo.unit_price * quantity,
+                    //                     recipe: recipe.name.clone(), 
+                    //                     number: meal.as_common().number
+                    //                 };
+                    //                 hash.entry(ingredient.name.clone()).or_insert(Subs(vec![sub.clone()])).push(sub);
+                    //             }
+                    //     }}
+                    // }
                 }
             }
         }
-        vdays.sort();
+        matrix_errs.push_opt(name_shopday_errs.to_child("from named ShopDays".to_string()));
+        vasar_days.sort();
 
-
+        // create ingredient - Times hashmap
+        let mut meal_reicipe_errs: EWs<Err> = EWs::new();
         let mut ossz_vasar: HashMap<String, Vec<Time>> = HashMap::new();
         for meal in meals.iter_mut() {
-            let day = meal.as_common().day.as_day().clone();
-            let recipe = match self.recipes.get_recipe(&meal.as_common().recipe) {
-                Some(v) => v,
-                None => {
-                    return Some(format!("Nem található ilyen recept: {}, étkezés ideje: {}", meal.as_common().recipe, meal.as_common().day.to_string()))
-                }
-            };
-            for ingredient in recipe.ingredients.iter() {
-                ossz_vasar.entry(ingredient.name.clone()).or_insert(Vec::new()).push(day);
+            let day = meal.day.as_day();
+            match &meal.ty {
+                MealType::Common(common) => {
+                    let recipe = match self.recipes.get_recipe(&common.main_recipe) {
+                        Some(v) => v,
+                        None => {
+                            meal_reicipe_errs.push(EW::from(format!("Nem található ilyen recept: {}, étkezés ideje: {}", common.main_recipe, meal.day.to_string())));
+                            continue;
+                        }
+                    };
+                    for ingredient in recipe.ingredients.iter() {
+                        ossz_vasar.entry(ingredient.name.clone()).or_insert(Vec::new()).push(day.clone());
+                    }
+                },
+                MealType::Troup(troup) => todo!()
             }
         }
+        matrix_errs.push_opt(meal_reicipe_errs.to_child("from not named meals".to_string()));
 
-
+        // preapre time - ingredient hashmap
         let mut vasar: HashMap<Time, HashMap<String, bool>> = HashMap::new();
-        for day in vdays.iter() {
+        for day in vasar_days.iter() {
             vasar.insert(*day, HashMap::new());
         }
 
 
-        println!("ossz_vasar: {:?}", ossz_vasar);
-        println!("vdays: {:?}", vdays);
-
-        for (ingredient, idays) in ossz_vasar.iter_mut() {
-            idays.sort();
+        // println!("ossz_vasar: {:?}", ossz_vasar);
+        // println!("vdays: {:?}", vdays);
+        // vasar hashmap kitöltése
+        let mut _errs: EWs<Err> = EWs::new();
+        for (ingredient, szukseg_days) in ossz_vasar.iter_mut() {
             let time = match self.osszetevok.by_name(ingredient) {
-                Some(ingredient) => ingredient.time.as_day(),
+                Some(ing) => match &ing.time {
+                    ShopDay::Day(v) => v,
+                    ShopDay::Name(name) => {
+                        // handle String elállási idő
+                        if let Some(hash) = self.matrix.get(&ing.time) {
+                            todo!()
+                        } else {
+                            _errs.push(EW::from(format!("Nincs ilyen vásárnap: {} (összetevő: {})", name, ingredient)))
+                        }
+                        continue;
+                    }
+                },
                 None => {
-                    return Some(format!("Összetevő nem található: {}", ingredient));
+                    _errs.push(EW::from(format!("Összetevő nem található: {}", ingredient)));
+                    continue;
                 }
             };
             // let mut i = 0;
-            println!("time: {}", time);
+            let mut ing_errs: EWs<Err> = EWs::new();
+            //println!("time: {}", time);
+            szukseg_days.sort();
+            szukseg_days.reverse();
             loop {
-                println!("idays: {:?}", idays);
-                match idays.first() {
-                    Some(iday) => {
-                        let vday = match vdays.iter().filter(|&x| x <= iday).max() {
-                            Some(vday) => vday,
+                //println!("szukseg_days: {:?}", szukseg_days);
+                match szukseg_days.pop() {
+                    Some(szukseg_day) => {
+                        // legnagyobb szukseg_day-nél kisebb vasar_day
+                        let vasar_day = match vasar_days.iter().filter(|&x| x <= &szukseg_day).max() {
+                            Some(v) => v,
                             None => {
-                                return Some(format!("Nem lehet venni {}-t, az alábbi napokra: {:?}, elállási idő: {}, vásárnapok: {:?}",
-                                    ingredient, idays, time, vdays));
+                                ing_errs.push(EW::from(format!("Nem lehet venni az alábbi napra: {}, elállási idő: {}, vásárnapok: {:?}",
+                                szukseg_day, time, vasar_days)));
+                                continue;
                             }
                         };
-                        println!("vday: {:?}", vday);
-                        let hash = vasar.get_mut(vday).expect("Hiba a kódban, korábban az összes vday-t belepakoltuk vasar-ba.");
-                        hash.insert(ingredient.clone(), true);
-                        if *idays.iter().min().expect("A match-nál ellenőriztük, hogy van a listának első eleme.") >= *vday + *time {
-                            return Some(format!("nem lehet megvenni {} összetevőt ekkorra: {}, előtte lévő vásárlás: {}, elállási idő: {}",
-                                ingredient, iday, vday, time));
+                        //println!("vday: {:?}", vasar_day);
+                        
+                        // A vasar_day-on meg tudjuk-e venni az ingredient-et (elállási idó)
+                        if szukseg_day >= *vasar_day + *time {
+                            ing_errs.push(EW::from(format!("Nem lehet megvenni ekkorra: {}, előtte lévő vásárlás: {}, elállási idő: {}",
+                            szukseg_day, vasar_day, time)));
+                            continue;
+                        } else {
+                            let hash = vasar.get_mut(vasar_day).expect("Hiba a kódban, korábban az összes vday-t belepakoltuk vasar-ba.");
+                            hash.insert(ingredient.clone(), true);
                         }
-                        idays.retain(|&jday| jday >= *vday + *time);
+                        szukseg_days.retain(|&jday| jday >= *vasar_day + *time);
+                        
+                        if *vasar_days.iter().max().expect("biztos, hogy van vasarnap") + *time < szukseg_day {
+                            ing_errs.push(EW::from(format!("Nem lehet megvenni ekkorra: {}, előtte lévő vásárlás: {}, elállási idő: {}",
+                                szukseg_day, vasar_day, time)));
+                            break;
+                        }
                     },
                     None => break,
                 }
-                // if i > 10 {
-                //     break;
-                // } else {
-                //     i += 1;
-                // }
-
             }
-            
-            // println!("ing_name: {}, vdays: {:?}", ingredient, vdays);
-            // idays.sort();
-            // let time = self.osszetevok.by_name(ingredient).unwrap().time as i32;
-            // let terjedelem = idays.iter().max().unwrap() - idays.iter().min().unwrap() + 1;
-            // let count = (terjedelem as f32 / time as f32).ceil() as i32;
-            // println!("time: {}, terj: {}, count: {}", time, terjedelem, count);
-            // for _ in 0..count {
-            //     match idays.first() {
-            //         Some(iday) => {
-            //             let iday = *iday;
-            //             println!("vasar: {:?}, vdays: {:?}, iday: {}, idays: {:?}", vasar, vdays, iday, idays);
-            //             let vday = vdays.iter().filter(|&x| *x <= iday).max().unwrap();
-            //             let hash = vasar.get_mut(&vday).unwrap();
-            //             hash.insert(ingredient.clone(), true);
-            //             idays.retain(|jday| *jday >= vday + time)
-            //         },
-            //         None => break,
-            //     }
-            // }
+            _errs.push_opt(ing_errs.to_child(ingredient.clone()));
         }
-
+        matrix_errs.push_opt(_errs.to_child("ingredient-times -> time-ingredients".to_string()));
 
         //println!("{:?}", vasar.get(&1));
 
+        // create subs for day elállási idő
+        let mut meals_errs: EWs<Err> = EWs::new();
         for meal in meals.iter() {
-            let day = meal.as_common().day.as_day().clone();
-            println!("meal.recipe: {}, recipe: {}", meal.as_common().recipe, self.recipes.get(0).unwrap().name);
-            let recipe = match self.recipes.get_recipe(&meal.as_common().recipe) {
-                Some(recipe) => recipe,
-                None => {
-                    return Some(format!("Nem található ilyen recept: {}, étkezés ideje: {}", meal.as_common().recipe, meal.as_common().day.to_string()))
-                }
-            };
-            for ingredient in recipe.ingredients.iter() {
-                println!("vasar: {:?}, name: {}, res: {:?}", vasar, ingredient.name, get_shopping_days(&vasar, &ingredient.name));
-                let vday = match get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max() {
-                    Some(vday) => vday.clone(),
-                    None => {
-                        return Some(format!("Hiba a kódban! Elméletileg van vásárnap"));
+            let day = meal.day.as_day().clone();
+            //println!("meal.recipe: {}, recipe: {}", meal.as_common().main_recipe, self.recipes.get(0).unwrap().name);
+            let mut meal_errs: EWs<Err> = EWs::new();
+            match &meal.ty {
+                MealType::Common(common) => {
+                    let recipe = match self.recipes.get_recipe(&common.main_recipe) {
+                        Some(r) => r,
+                        None => {
+                            meal_errs.push(EW::from(format!("Nem található ilyen recept: {}, étkezés ideje: {}", common.main_recipe, meal.day.to_string())));
+                            continue;
+                        }
+                    };
+                    let mut ing_errs: EWs<Err> = EWs::new();
+                    for ingredient in recipe.ingredients.iter() {
+                        println!("vasar: {:?}, name: {}, res: {:?}", vasar, ingredient.name, get_shopping_days(&vasar, &ingredient.name));
+
+                        let vasar_day = get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max().expect("csak akkor kerül be valami a vasar-ba, ha minden jó").clone();
+
+                        let hash = self.matrix.entry(ShopDay::Day(vasar_day.clone())).or_insert(HashMap::new());
+                        let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
+                            Some(osszetevo) => osszetevo,
+                            None => {
+                                //return Some(format!("Összetevő nem található: {}", ingredient.name));
+                                ing_errs.push(EW::from(format!("Nem található ilyen összetevő: {}", ingredient.name)));
+                                continue;
+                            }
+                        };
+                        let converted = match ingredient.convert(&osszetevo.unit, &self.convs) {
+                            Some(quantity) => quantity,
+                            None => {
+                                //return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, osszetevo.unit));
+                                ing_errs.push(EW::from(format!("Nem lehet {}-t {}-ra/re átváltani. (összetevő: {})", ingredient.unit, osszetevo.unit, ingredient.name)));
+                                continue;
+                            }
+                        };
+                        let quantity = converted * common.number as f64 / recipe.number as f64;
+                        let sub = Sub {
+                            quantity, 
+                            price: osszetevo.unit_price * quantity,
+                            recipe: common.main_recipe.clone(), 
+                            number: common.number
+                        };
+                        hash.entry(ingredient.name.clone()).or_insert(Subs::new()).push(sub);
                     }
-                };
-                let hash = self.matrix.entry(ShopDay::Day(vday)).or_insert(HashMap::new());
-                let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
-                    Some(osszetevo) => osszetevo,
-                    None => {
-                        return Some(format!("Összetevő nem található: {}", ingredient.name));
-                    }
-                };
-                let converted = match ingredient.convert(&osszetevo.unit, &self.convs) {
-                    Some(quantity) => quantity,
-                    None => {
-                        return Some(format!("Nem lehet {}-t {}-ra/re átváltani.", ingredient.unit, osszetevo.unit));
-                    }
-                };
-                let quantity = converted * meal.as_common().number as f64 / recipe.number as f64;
-                let sub = Sub {
-                    quantity, 
-                    price: osszetevo.unit_price * quantity,
-                    recipe: meal.as_common().recipe.clone(), 
-                    number: meal.as_common().number
-                };
-                hash.entry(ingredient.name.clone()).or_insert(Subs::new()).push(sub);
+                    meal_errs.push_opt(ing_errs.to_child(format!("étkezés ideje: {}", day)));
+                },
+                MealType::Troup(troup) => todo!()
             }
+            meals_errs.push_opt(meal_errs.to_child(format!("from meal: {:?}", meal)));
         }
+
+        //log!(format!("{:#?}", self.matrix));
 
         None
     }
@@ -368,19 +477,22 @@ fn test_calculate_matrix() {
                 name: String::from("aaa"), 
                 unit: String::from("m"), 
                 time: ShopDay::Day("1".parse().unwrap()), 
-                unit_price: 100.0
+                unit_price: 100.0,
+                sens: Sensitivities::default(),
             },
             Osszetevo {
                 name: String::from("bbb"), 
                 unit: String::from("m"), 
                 time: ShopDay::Day("2".parse().unwrap()), 
-                unit_price: 200.0
+                unit_price: 200.0,
+                sens: Sensitivities::default(),
             },
             Osszetevo {
                 name: String::from("ccc"), 
                 unit: String::from("m"), 
                 time: ShopDay::Day("3".parse().unwrap()), 
-                unit_price: 300.0
+                unit_price: 300.0,
+                sens: Sensitivities::default(),
             }
         ]),
         recipes: Recipes (vec![Recipe {
@@ -403,18 +515,24 @@ fn test_calculate_matrix() {
             sens: Sensitivities::default(),
         }]),
         meals: Meals(vec![
-            Meal::Common(CommonMeal {
-            recipe: String::from("alma"),
-            number: 20,
-            day: ShopDay::Day("1".parse().unwrap())
-            }),
-            Meal::Common(CommonMeal {
-                recipe: String::from("alma"),
-                number: 10,
-                day: ShopDay::Day("2".parse().unwrap())
-            }),
+            Meal {
+                day: ShopDay::Day("1".parse().unwrap()),
+                ty: MealType::Common(CommonMeal {
+                    number: 20,
+                    main_recipe: String::from("alma"),
+                    sens_cases: SensitiveCases::default(),
+                })
+            },
+            Meal {
+                day: ShopDay::Day("2".parse().unwrap()),
+                ty: MealType::Common(CommonMeal {
+                    number: 10,
+                    main_recipe: String::from("alma"),
+                    sens_cases: SensitiveCases::default(),
+                })
+            },
         ]),
-        shoppingdays: Shoppings(vec![
+        shoppings: Shoppings(vec![
             Shopping {
                 day: ShopDay::Day("1".parse().unwrap()),
                 name: String::from("egy"),
@@ -438,8 +556,8 @@ fn test_calculate_matrix() {
         version: 0,
     };
 
-    if let Some(err) = terv.make_beszerek() {
-        panic!("{}", err);
+    if let Result::Err(err) = terv.make_beszerek() {
+        panic!("{:#?}", err);
     }
 
     print!("beszerek: {:#?}", terv.beszerek);

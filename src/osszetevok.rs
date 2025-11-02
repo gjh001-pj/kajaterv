@@ -4,6 +4,7 @@ use crate::shop::ShopDay;
 use crate::backend::paste::PasteCell;
 use crate::create_vec_wrapper;
 use crate::ew::{EWs, GetEWs, EW};
+use crate::troop::sensitive::sensitivity::Sensitivities;
 
 
 pub mod display;
@@ -13,19 +14,20 @@ pub struct Osszetevo {
     pub name: String,
     pub unit: String,
     pub time: ShopDay,
+    pub sens: Sensitivities,
     pub unit_price: f64,
 }
 
 
 impl Osszetevo {
-    pub fn new() -> Self {
-        Osszetevo {
-            name: String::new(),
-            unit: String::new(),
-            time: ShopDay::Name(String::new()),
-            unit_price: 0.0,
-        }
-    }
+    // pub fn new() -> Self {
+    //     Osszetevo {
+    //         name: String::new(),
+    //         unit: String::new(),
+    //         time: ShopDay::Name(String::new()),
+    //         unit_price: 0.0,
+    //     }
+    // }
 
     pub fn set_name(&mut self, name: String) {
         self.name = name;
@@ -148,7 +150,7 @@ impl Osszetevok {
     }
 
     pub fn add_new(&mut self) {
-        self.add(Osszetevo::new());
+        self.add(Osszetevo::default());
     }
 
     // pub fn remove(&mut self, index: usize) {

@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use std::fmt::Display;
 
 use crate::backend::time::Time;
+use crate::create_vec_wrapper;
 
 
 pub mod display;
@@ -76,7 +77,7 @@ impl Display for ShopDay {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Eq, Hash)]
+#[derive(PartialEq, Clone, Debug, Eq, Hash, Default)]
 pub struct Shopping {
     pub day: ShopDay,
     pub name: String,
@@ -91,14 +92,7 @@ impl Shopping {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Eq, Hash)]
-pub struct Shoppings(pub Vec<Shopping>);
-
-impl Shoppings {
-    pub fn new() -> Self {
-        Shoppings (Vec::new())
-    }
-}
+create_vec_wrapper!{Shoppings, Shopping}
 
 impl Shoppings {
     pub fn get_by_day(&self, day: &ShopDay) -> Option<&Shopping> {
@@ -108,19 +102,5 @@ impl Shoppings {
             }
         }
         None
-    }
-}
-
-impl Deref for Shoppings {
-    type Target = Vec<Shopping>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Shoppings {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }

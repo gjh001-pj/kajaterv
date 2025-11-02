@@ -21,6 +21,18 @@ pub struct Troop {
     pub sensitives: Sensitives,
 }
 
+impl Troop {
+    pub fn sensitives_here(&self, time: &Time) -> Sensitives {
+        self.sensitives.iter().filter_map(|sensitive| {
+            if sensitive.is_here(time) {
+                Some(sensitive.clone())
+            } else {
+                None
+            }
+        }).collect::<Vec<_>>().into()
+    }
+}
+
 create_vec_wrapper!(Troops, Troop);
 
 #[test]

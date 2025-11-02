@@ -6,10 +6,10 @@ use std::fmt::Display;
 use crate::backend::time::Time;
 use crate::create_vec_wrapper;
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, PartialOrd, Eq, Ord)]
 pub enum ActionType {
-    El,
     Meg,
+    El,
 }
 
 impl FromStr for ActionType {
@@ -34,10 +34,10 @@ impl Display for ActionType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq, PartialOrd, Ord)]
 pub struct Action {
-    ty: ActionType,
-    time: Time,
+    pub time: Time,
+    pub ty: ActionType,
 }
 
 impl Action {
@@ -47,7 +47,6 @@ impl Action {
         }
     }
 }
-
 
 create_vec_wrapper!(Actions, Action);
 
@@ -66,7 +65,7 @@ impl Display for Actions {
 
 impl From<&str> for Actions {
     fn from(value: &str) -> Self {
-        value.split(',').filter_map(|sub| {
+        let mut res = value.split(',').filter_map(|sub| {
             let mut iter = sub.splitn(2, ':');
             let action_type: ActionType;
             if let Some(act_str) = iter.next() {
@@ -80,7 +79,9 @@ impl From<&str> for Actions {
                     return Some(Action::new(action_type, time));
                 } else { return None; }
             } else { return None; }
-        }).collect::<Vec<_>>().into()
+        }).collect::<Vec<_>>();
+        res.sort();
+        res.into()
     }
 }
 

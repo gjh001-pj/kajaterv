@@ -2,6 +2,7 @@ use std::ops::{Deref, DerefMut};
 use std::collections::HashMap;
 
 use crate::shop::{Shopping, ShopDay};
+use crate::create_vec_wrapper;
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Sub {
@@ -11,28 +12,30 @@ pub struct Sub {
     pub number: u32,
 }
 
-#[derive(PartialEq, Clone, Debug)]
-pub struct Subs(pub Vec<Sub>);
+create_vec_wrapper!{Subs, Sub}
 
-impl Subs {
-    pub fn new() -> Subs {
-        Subs (Vec::new())
-    }
-}
+// #[derive(PartialEq, Clone, Debug)]
+// pub struct Subs(pub Vec<Sub>);
 
-impl Deref for Subs {
-    type Target = Vec<Sub>;
+// impl Subs {
+//     pub fn new() -> Subs {
+//         Subs (Vec::new())
+//     }
+// }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+// impl Deref for Subs {
+//     type Target = Vec<Sub>;
 
-impl DerefMut for Subs {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
+
+// impl DerefMut for Subs {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.0
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Matrix {

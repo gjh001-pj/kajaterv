@@ -1,3 +1,4 @@
+
 use yew::prelude::*;
 use web_sys::{DataTransfer, HtmlInputElement};
 use gloo::console::log;
@@ -19,10 +20,12 @@ use crate::input_with_defs;
 
 use super::*;
 
-
+use crate::tr;
 
 pub struct OsszetevoPage {
     pub focus_nav: TableFocusNavigator,
+    pub dragged_index: Option<usize>,
+    pub dragover_index: Option<usize>,
 }
 
 // Display
@@ -34,11 +37,18 @@ pub enum OsszetevoMsg {
     UpdateUnitPrice(usize, String),
     Add,
     Remove(usize),
+
     KeyPressed(usize, usize, KeyboardEvent),
     MouseClick,
     HandlePaste(String, usize, usize),
     DoNothing,
     DefWinBeh(DefWinMsg),
+
+    ReDraw,
+
+    DragStart(usize),
+    DragEnter(usize),
+    Drop(usize),
 }
 
 impl Component for OsszetevoPage {
@@ -51,6 +61,8 @@ impl Component for OsszetevoPage {
 
         Self {
             focus_nav: TableFocusNavigator::new(terv.osszetevok.len(), 4),
+            dragged_index: None,
+            dragover_index: None,
         }
     }
 
@@ -109,15 +121,40 @@ impl Component for OsszetevoPage {
             OsszetevoMsg::DoNothing => false,
             OsszetevoMsg::DefWinBeh(dwm) => {
                 handle_default_msg(dwm, &mut self.focus_nav, ctx, &mut terv.osszetevok)
-            }
-            _ => {false}
+            },
+
+            OsszetevoMsg::DragStart(index) => {
+                self.dragged_index = Some(index);
+                //log!(format!("Dragged row: {}", index));
+                true
+            },
+            OsszetevoMsg::DragEnter(target_index) => {
+                //log!(format!("Dragging over row {}", target_index));
+                self.dragover_index = Some(target_index);
+                true
+            },
+            OsszetevoMsg::Drop(target_index) => {
+                let src_index = self.dragged_index.unwrap();
+                let render = if src_index == target_index {false} else {
+                    // terv.osszetevok.swap(src_index, target_index);
+                    let item = terv.osszetevok.remove(src_index);
+                    terv.osszetevok.insert(target_index, item);
+
+                    true
+                };
+                self.dragged_index = None;
+                self.dragover_index = None;
+                render
+            },
+            OsszetevoMsg::ReDraw => true,
+            _ => false,
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
         let app_data = link.context::<AppContext>(Callback::noop()).unwrap().0;
-        let terv = app_data.terv.borrow();
+        let terv = app_data.terv.borrow_mut();
         
         let mut all_osszetevo_name_list: Vec<&String> = terv.recipes.iter().map(|recipe| {
             recipe.ingredients.iter().map(|ingredient| {
@@ -134,41 +171,6 @@ impl Component for OsszetevoPage {
                 html! {}
             }
         });
-
-        //let onpaste = |row, col| link.callback(move |e: Event| OsszetevoMsg::DefWinBeh(DefWinMsg::HandlePaste(row, col, e)));
-
-        // let onpaste = |row, col| link.callback(move |e: Event| {
-        //     // let clipboard_event = e.dyn_ref::<ClipboardEvent>().unwrap();
-        //     // let data_transfer = clipboard_event.clipboard_data().unwrap();
-        //     // let text = data_transfer.get_data("text").unwrap();
-        //     // return OsszetevoMsg::HandlePaste(text, row, col);
-//
-        //     if let Some(clipboard_event) = e.dyn_ref::<ClipboardEvent>() {
-        //         if let Some(data_transfer) = clipboard_event.clipboard_data() {
-        //             match data_transfer.get_data("text") {
-        //                 Ok(text) => {
-        //                     if text == "" { OsszetevoMsg::DoNothing } 
-        //                     else if !text.contains("\n") && !text.contains("\t") {
-        //                         OsszetevoMsg::DoNothing
-        //                     } else {
-        //                         e.prevent_default();
-        //                         OsszetevoMsg::HandlePaste(text, row, col)
-        //                     }
-        //                 }
-        //                 Err(err) => {
-        //                     log!("Failed to retrieve pasted text: {}", err.as_string().unwrap_or_else(|| "Unknown error".to_string()));
-        //                     OsszetevoMsg::DoNothing
-        //                 }
-        //             }
-        //         } else {
-        //             log!("Clipboard data is unavailable.");
-        //             OsszetevoMsg::DoNothing
-        //         }
-        //     } else {
-        //         log!("Event is not a ClipboardEvent.");
-        //         OsszetevoMsg::DoNothing
-        //     }
-        // });
         
         let onpaste = |row, col| link.callback(move |e: Event| 
             OsszetevoMsg::DefWinBeh(DefWinMsg::HandlePaste(row, col, e)
@@ -211,8 +213,45 @@ impl Component for OsszetevoPage {
                                 OsszetevoMsg::UpdateUnitPrice(index, input.value())
                             });
 
+                            // html!{
+                            //     {tr!{
+                            //         OsszetevoMsg::ReDraw,
+                            //         self.dragover_index, self.dragged_index,
+                            //         link, index, terv.osszetevok, 
+                            //         {<td><input type="text" list="osszetevo_name_list" value={value.name.clone()} 
+                            //                 onchange={update_name} 
+                            //                 onkeydown={onkeydown(index, 0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 0).clone()}
+                            //              /></td>
+                            //         <td><input type="text" value={value.unit.clone()} onchange={update_unit} 
+                            //             onkeydown={onkeydown(index, 1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 1).clone()} /></td>
+                            //         <td><input value={value.time.to_string()} onchange={update_time} 
+                            //             onkeydown={onkeydown(index, 2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 2).clone()} /></td>
+                            //         <td><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} 
+                            //             onkeydown={onkeydown(index, 3)} ref={self.focus_nav.refs[index][3].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 3).clone()} /></td>
+                            //         <td><button onclick={link.callback(move |_| OsszetevoMsg::Remove(index))}>{ "Remove" }</button></td>
+                            //         if index != 0 && value.name != "" && terv.osszetevok.get(0..index).unwrap().iter().filter(|&osszetevo| osszetevo.name == value.name).next() != None {
+                            //             <p class="warn">{ format!("{} már létezik", value.name) }</p>
+                            //         }}
+                            //     }}
+                            // }
+
+                            let row_class = if self.dragged_index == Some(index) {"dragged-row"}
+                            else if self.dragover_index == Some(index) {"drag-over-row"} 
+                            else {""};
+
                             html! {
-                                <tr>
+                                <tr 
+                                    key={index}
+                                    draggable={"true"}
+                                    class={row_class}
+                                    ondragstart={link.callback(move |e: DragEvent| {
+                                        e.data_transfer().unwrap().set_drag_image(&web_sys::HtmlImageElement::new().unwrap(), 0, 0);
+                                        OsszetevoMsg::DragStart(index)
+                                    })}
+                                    ondragenter={link.callback(move |_| OsszetevoMsg::DragEnter(index))}
+                                    ondragover={Callback::from(move |e: DragEvent| e.prevent_default())}
+                                    ondrop={link.callback(move |_| OsszetevoMsg::Drop(index))}
+                                >
                                     <td><input type="text" list="osszetevo_name_list" value={value.name.clone()} 
                                             onchange={update_name} 
                                             onkeydown={onkeydown(index, 0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 0).clone()}

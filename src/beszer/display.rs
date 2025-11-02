@@ -1,5 +1,7 @@
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
+use gloo::console::log;
+
 use std::collections::HashMap;
 
 
@@ -27,10 +29,14 @@ impl Component for BeszerPage {
     fn create(ctx: &Context<Self>) -> Self {
         let app_data = ctx.link().context::<AppContext>(Callback::noop()).unwrap().0;
         let mut terv = app_data.terv.borrow_mut();
+
+        let error = terv.make_beszerek();
+
+        log!(format!("{:?}", error));
         
         BeszerPage {
-            error: terv.make_beszerek(),
-            current_beszer: Some(0),
+            error: error,
+            current_beszer: if terv.beszerek.len() > 0 {Some(0)} else {None},
         }
     }
 
@@ -70,7 +76,7 @@ impl Component for BeszerPage {
         let link = ctx.link();
         let app_data = link.context::<AppContext>(Callback::noop()).unwrap().0;
         let terv = app_data.terv.borrow();
-        let shoppingdays = terv.shoppingdays.clone();
+        let shoppingdays = terv.shoppings.clone();
 
         let select_beszer = link.callback(|e: Event| {
             let input: HtmlInputElement = e.target_unchecked_into();
@@ -79,6 +85,7 @@ impl Component for BeszerPage {
 
         html! {
             <div class="beszer">
+                <p>{ "alma" }</p>
                 if let Some(error) = &self.error {
                     <p>{ format!("error: {}", error) }</p>
                 } else if let None = self.current_beszer {
