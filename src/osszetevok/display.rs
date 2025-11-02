@@ -192,7 +192,7 @@ impl Component for OsszetevoPage {
                         <tr>
                             <th>{ "Name" }</th><th>{ "Unit" }</th><th>{ "Time" }</th><th>{ "Unit price" }</th>
                         </tr>
-                        { for terv.osszetevok.iter().enumerate().map(|(index, value)| {
+                        { for terv.osszetevok.iter().enumerate().map(|(index, osszetevo)| {
                             let update_name = link.callback(move |e: Event| {
                                 let input: HtmlInputElement = e.target_unchecked_into();
                                 OsszetevoMsg::UpdateName(index, input.value())
@@ -252,20 +252,32 @@ impl Component for OsszetevoPage {
                                     ondragover={Callback::from(move |e: DragEvent| e.prevent_default())}
                                     ondrop={link.callback(move |_| OsszetevoMsg::Drop(index))}
                                 >
-                                    <td><input type="text" list="osszetevo_name_list" value={value.name.clone()} 
+                                    <td><input type="text" list="osszetevo_name_list" value={osszetevo.name.clone()} 
                                             onchange={update_name} 
                                             onkeydown={onkeydown(index, 0)} ref={self.focus_nav.refs[index][0].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 0).clone()}
                                          /></td>
-                                    <td><input type="text" value={value.unit.clone()} onchange={update_unit} 
+                                    <td><input type="text" value={osszetevo.unit.clone()} onchange={update_unit} 
                                         onkeydown={onkeydown(index, 1)} ref={self.focus_nav.refs[index][1].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 1).clone()} /></td>
-                                    <td><input value={value.time.to_string()} onchange={update_time} 
+                                    <td><input value={osszetevo.time.to_string()} onchange={update_time} 
                                         onkeydown={onkeydown(index, 2)} ref={self.focus_nav.refs[index][2].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 2).clone()} /></td>
-                                    <td><input type="number" step="any" value={value.unit_price.to_string()} onchange={update_unit_price} 
+                                    <td><input type="number" step="any" value={osszetevo.unit_price.to_string()} onchange={update_unit_price} 
                                         onkeydown={onkeydown(index, 3)} ref={self.focus_nav.refs[index][3].clone()} onclick={onclick.clone()} onpaste={onpaste(index, 3).clone()} /></td>
                                     <td><button onclick={link.callback(move |_| OsszetevoMsg::Remove(index))}>{ "Remove" }</button></td>
-                                    if index != 0 && value.name != "" && terv.osszetevok.get(0..index).unwrap().iter().filter(|&osszetevo| osszetevo.name == value.name).next() != None {
-                                        <p class="warn">{ format!("{} már létezik", value.name) }</p>
-                                    }
+                                    {for osszetevo.get_errors(&terv).iter().map(|error| html!{
+                                        <td class="err">{ match error {
+                                            EW::Owned(text) => text.clone(),
+                                            _ => "hiba a kódban".to_string(),
+                                        } }</td>
+                                    })}
+                                    {for osszetevo.get_warnings(&terv).iter().map(|warning| html!{
+                                        <td class="warn">{ match warning {
+                                            EW::Owned(text) => text.clone(),
+                                            _ => "hiba a kódban".to_string(),
+                                        } }</td>
+                                    })}
+                                    // if index != 0 && value.name != "" && terv.osszetevok.get(0..index).unwrap().iter().filter(|&osszetevo| osszetevo.name == value.name).next() != None {
+                                    //     <p class="warn">{ format!("{} már létezik", value.name) }</p>
+                                    // }
                                 </tr>
                             }
                         })}

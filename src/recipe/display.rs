@@ -204,6 +204,7 @@ impl Component for RecipePage {
                 terv.recipes.remove(self.current_recipe.expect("Nem lehet rossz! 001"));
                 if terv.recipes.len() > 0 {
                     self.current_recipe = Some(0);
+                    self.rebuild_focus_navs(&terv);
                 } else {
                     self.current_recipe = None;
                 }
@@ -491,7 +492,7 @@ impl RecipePage {
 
                 let cr = self.current_recipe.unwrap();
                 let fnp = FNP::new(index, 0, 
-                    self.focus_nav_sub.clone(), 
+                    self.focus_nav_ing.clone(), 
                     create_gdv(move |t| t.recipes[cr].ingredients.as_mut()),
                     app_data.clone()
                 );

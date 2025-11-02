@@ -18,6 +18,7 @@ use crate::backend::matrix::{Matrix, Subs, Sub};
 use crate::shop::{Shoppings, Shopping, ShopDay};
 use crate::backend::time::Time;
 use crate::beszer::display::{format_quantities, format_prices, format_quantities2};
+use crate::socket::data::com;
 use crate::troop::sensitive::Sensitives;
 use crate::troop::sensitive::sensitivity::Sensitivities;
 use crate::troop::{Troops, Troop};
@@ -398,7 +399,14 @@ impl Terv {
                     for ingredient in recipe.ingredients.iter() {
                         println!("vasar: {:?}, name: {}, res: {:?}", vasar, ingredient.name, get_shopping_days(&vasar, &ingredient.name));
 
-                        let vasar_day = get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max().expect("csak akkor kerül be valami a vasar-ba, ha minden jó").clone();
+                        let vasar_day = match get_shopping_days(&vasar, &ingredient.name).iter().filter(|&x| *x <= day).max() {
+                            Some(v) => v.clone(),
+                            None => continue,
+                        };
+                            // .expect(&format!("ing: {}, rec: {}, day: {}, vasar: {:#?}, g_s_d: {:?}, matrix_errs: \n{}", ingredient.name, common.main_recipe, day, 
+                            // vasar, get_shopping_days(&vasar, &ingredient.name), matrix_errs
+                            // //"csak akkor kerül be valami a vasar-ba, ha minden jó"
+                            // )).clone();
 
                         let hash = self.matrix.entry(ShopDay::Day(vasar_day.clone())).or_insert(HashMap::new());
                         let osszetevo = match self.osszetevok.by_name(&ingredient.name) {
@@ -435,7 +443,7 @@ impl Terv {
 
         //log!(format!("{:#?}", self.matrix));
 
-        None
+        matrix_errs.to_child("matrix".to_owned())
     }
 }
 
@@ -556,7 +564,7 @@ fn test_calculate_matrix() {
         version: 0,
     };
 
-    if let Result::Err(err) = terv.make_beszerek() {
+    if let Some(err) = terv.make_beszerek() {
         panic!("{:#?}", err);
     }
 

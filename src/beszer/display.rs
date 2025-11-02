@@ -32,7 +32,7 @@ impl Component for BeszerPage {
 
         let error = terv.make_beszerek();
 
-        log!(format!("{:?}", error));
+        //log!(format!("{:?}", error));
         
         BeszerPage {
             error: error,
@@ -87,7 +87,7 @@ impl Component for BeszerPage {
             <div class="beszer">
                 <p>{ "alma" }</p>
                 if let Some(error) = &self.error {
-                    <p>{ format!("error: {}", error) }</p>
+                    <p style="white-space: pre-wrap">{ format!("error: \n{}", error) }</p>
                 } else if let None = self.current_beszer {
                     <p>{ "Nincs beszerlista" }</p>
                 } else { 

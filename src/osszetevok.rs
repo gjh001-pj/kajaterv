@@ -63,13 +63,21 @@ impl GetEWs for Osszetevo {
         }
         errs.into()
     }
-    fn get_warnings(&self, _terv: &crate::terv::Terv) -> EWs<crate::ew::Warn> {
+    fn get_warnings(&self, terv: &crate::terv::Terv) -> EWs<crate::ew::Warn> {
         let mut warns = Vec::new();
         if self.time == ShopDay::default() {
             warns.push(EW::from("Nem lett beállítva idő."))
         }
         if self.unit_price == 0.0 {
             warns.push(EW::from("Nem lett beállítva egységár."))
+        }
+        let mut ings = terv.recipes.iter().map(|recipe| {
+            recipe.ingredients.iter().map(|ing| {
+                &ing.name
+            }).collect::<Vec<_>>()
+        }).flatten();
+        if !ings.any(|name| *name == self.name) {
+            warns.push(EW::from("Egyik recept se használja."));
         }
         warns.into()
     }

@@ -101,6 +101,15 @@ impl<T> EWs<T> {
     }
 }
 
+impl<T> std::fmt::Display for EWs<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for ew in self.iter() {
+            write!(f, "{}", ew);
+        }
+        Ok(())
+    }
+}
+
 // implement default things
 
 impl<T> From<Vec<EW<T>>> for EWs<T> {
